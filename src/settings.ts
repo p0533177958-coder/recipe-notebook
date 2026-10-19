@@ -1,0 +1,73 @@
+import { useSyncExternalStore } from 'react';
+import { MIN_COOK_FONT } from './config';
+
+export type ThemeMode = 'auto' | 'light' | 'dark';
+export type ListView = 'grid' | 'rows';
+export type SortMode = 'recent' | 'alpha' | 'cooked';
+
+export type Settings = {
+  apiKey: string;
+  theme: ThemeMode;
+  view: ListView;
+  sort: SortMode;
+  cookFontSize: number;
+  speakTimers: boolean;
+};
+
+const KEY = 'rn-settings';
+const DEFAULTS: Settings = {
+  apiKey: '',
+  theme: 'auto',
+  view: 'grid',
+  sort: 'recent',
+  cookFontSize: 30,
+  speakTimers: true,
+};
+
+function load(): Settings {
+  try {
+    const s = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } as Settings;
+    s.cookFontSize = Math.max(MIN_COOK_FONT, s.cookFontSize);
+    return s;
+  } catch {
+    return DEFAULTS;
+  }
+}
+
+let current = load();
+const listeners = new Set<() => void>();
+
+export function getSettings(): Settings {
+  return current;
+}
+
+export function updateSettings(patch: Partial<Settings>): void {
+  current = { ...current, ...patch };
+  try {
+    localStorage.setItem(KEY, JSON.stringify(current));
+  } catch {
+    // Storage full or blocked: keep the in-memory value for this session.
+  }
+  applyTheme();
+  listeners.forEach((l) => l());
+}
+
+export function useSettings(): Settings {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => current,
+  );
+}
+
+export function applyTheme(): void {
+  const root = document.documentElement;
+  if (current.theme === 'auto') delete root.dataset.theme;
+  else root.dataset.theme = current.theme;
+  const dark =
+    current.theme === 'dark' ||
+    (current.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1F1A17' : '#C8553D');
+}
