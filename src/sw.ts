@@ -10,7 +10,11 @@ declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: (string | { url:
 
 const BASE = new URL(self.registration.scope).pathname; // e.g. "/" or "/recipe-notebook/"
 
-self.skipWaiting();
+// A new version waits until the page says it is a good moment (see src/lib/updates.ts),
+// so the app never switches versions in the middle of processing, editing or cooking.
+self.addEventListener('message', (event) => {
+  if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') void self.skipWaiting();
+});
 clientsClaim();
 
 // App shell + assets: everything the app needs to run offline.

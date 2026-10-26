@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { db, newId } from '../db';
 import { startAlarm, stopAlarm, unlockAudio } from '../lib/sound';
 import { speak } from '../lib/speech';
+import { setUpdateBlocked } from '../lib/updates';
 import { addTime, createTimer, isDue, pauseTimer, resumeTimer } from '../lib/timer';
 import { getSettings } from '../settings';
 import { S } from '../strings.he';
@@ -94,6 +95,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ringing) startAlarm();
     else stopAlarm();
+    setUpdateBlocked('ringing', ringing);
   }, [ringing]);
   useEffect(() => () => stopAlarm(), []);
 

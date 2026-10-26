@@ -1,8 +1,10 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { RingingOverlay } from './components/TimerUI';
-import { Toaster } from './components/ui';
+import { toast, Toaster } from './components/ui';
 import { TimerProvider } from './hooks/timers';
+import { consumeJustUpdated, notifyRoute } from './lib/updates';
+import { S } from './strings.he';
 import Home from './pages/Home';
 import RecipeIntro from './pages/RecipeIntro';
 import Cook from './pages/Cook';
@@ -14,6 +16,16 @@ const ImagesPreview = lazy(() => import('./pages/ImagesPreview'));
 const Processing = lazy(() => import('./pages/Processing'));
 const EditRecipe = lazy(() => import('./pages/EditRecipe'));
 const ShareReceive = lazy(() => import('./pages/ShareReceive'));
+
+/** Lets a waiting update apply on the next safe screen, and confirms right after an update. */
+function UpdateWatcher() {
+  const { pathname } = useLocation();
+  useEffect(() => notifyRoute(pathname), [pathname]);
+  useEffect(() => {
+    if (consumeJustUpdated()) toast(S.update.justUpdated);
+  }, []);
+  return null;
+}
 
 export default function App() {
   return (
@@ -33,6 +45,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        <UpdateWatcher />
         <RingingOverlay />
         <Toaster />
       </TimerProvider>

@@ -6,6 +6,7 @@ import { AI_STUDIO_URL, MAX_COOK_FONT, MIN_COOK_FONT } from '../config';
 import { backupFileName, downloadBlob, exportBackup, importFromText } from '../lib/backup';
 import { FONT_STYLES, loadAllFontStyles, type FontStyleId } from '../lib/fonts';
 import { AiError, checkApiKey } from '../lib/gemini';
+import { checkForUpdate } from '../lib/updates';
 import { playChime, unlockAudio } from '../lib/sound';
 import { speak } from '../lib/speech';
 import { restoreSamples } from '../seed';
@@ -65,6 +66,38 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         className="relative h-8 w-14 shrink-0 rounded-full bg-line transition peer-checked:bg-secondary peer-focus-visible:ring-2 peer-focus-visible:ring-primary after:absolute after:top-1 after:right-1 after:size-6 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:-translate-x-6"
       />
     </label>
+  );
+}
+
+const builtAt = new Date(__BUILD_TIME__).toLocaleString('he-IL', {
+  day: 'numeric',
+  month: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** Shows which version is running and checks for a newer one on demand. */
+function UpdateCheck() {
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    if (!navigator.onLine) {
+      toast(S.update.offline);
+      return;
+    }
+    setBusy(true);
+    const found = await checkForUpdate();
+    setBusy(false);
+    // When found, the app reloads by itself as soon as the new version is installed.
+    toast(found ? S.update.found : S.update.upToDate);
+  };
+  return (
+    <div className="mt-3 flex flex-col items-center gap-2 pb-4">
+      <p className="text-sm text-muted">{S.update.builtAt(builtAt)}</p>
+      <Button variant="secondary" onClick={() => void check()} disabled={busy}>
+        {busy ? S.update.checking : S.update.checkNow}
+      </Button>
+    </div>
   );
 }
 
@@ -325,9 +358,8 @@ export default function Settings() {
 
         <p className="px-2 text-center text-sm text-muted">
           🔒 {S.settings.about}
-          <br />
-          {S.settings.version} {__APP_VERSION__}
         </p>
+        <UpdateCheck />
       </div>
     </div>
   );

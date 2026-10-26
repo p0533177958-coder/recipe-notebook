@@ -290,9 +290,13 @@ export const S = {
     title: 'שיתוף מתכון',
   },
   update: {
-    ready: 'גרסה חדשה מוכנה',
-    reload: 'רענון',
-    offlineReady: 'האפליקציה מוכנה לעבודה בלי אינטרנט',
+    justUpdated: 'האפליקציה עודכנה לגרסה החדשה ✓',
+    checkNow: 'בדוק עדכון עכשיו',
+    checking: 'בודק…',
+    upToDate: 'יש לך את הגרסה האחרונה ✓',
+    found: 'נמצאה גרסה חדשה, מתעדכן…',
+    offline: 'אין חיבור לאינטרנט, אי אפשר לבדוק עכשיו',
+    builtAt: (when: string) => `גרסה מ-${when}`,
   },
 } as const;
 
