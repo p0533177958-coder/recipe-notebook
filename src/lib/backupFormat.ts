@@ -25,6 +25,10 @@ const recipeSchema = z.object({
       timers: z.array(z.object({ label: z.string(), seconds: z.number() })).default([]),
     }),
   ),
+  prepAhead: z
+    .array(z.object({ text: z.string(), stepId: z.string(), leadMinutes: z.number(), emoji: z.string().optional() }))
+    .optional(),
+  prepReviewed: z.boolean().optional(),
   notes: z.string().optional(),
   favorite: z.boolean().default(false),
   createdAt: z.number().default(() => Date.now()),

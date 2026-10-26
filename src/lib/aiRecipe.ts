@@ -35,6 +35,17 @@ export const aiRecipeSchema = z.object({
     )
     .optional()
     .nullable(),
+  prepAhead: z
+    .array(
+      z.object({
+        text: z.string(),
+        stepNumber: z.number(),
+        leadMinutes: z.number(),
+        emoji: z.string().optional().nullable(),
+      }),
+    )
+    .optional()
+    .nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -84,12 +95,25 @@ export const geminiResponseSchema = {
         required: ['text', 'ingredientIds', 'timers'],
       },
     },
+    prepAhead: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          text: { type: 'STRING' },
+          stepNumber: { type: 'INTEGER' },
+          leadMinutes: { type: 'INTEGER' },
+          emoji: { type: 'STRING' },
+        },
+        required: ['text', 'stepNumber', 'leadMinutes'],
+      },
+    },
     notes: { type: 'STRING' },
   },
   required: ['isRecipe'],
   propertyOrdering: [
     'isRecipe', 'notRecipeReason', 'unreadable', 'title', 'emoji', 'category', 'tags',
-    'servings', 'totalTime', 'ingredients', 'steps', 'notes',
+    'servings', 'totalTime', 'ingredients', 'steps', 'prepAhead', 'notes',
   ],
 };
 
@@ -153,8 +177,18 @@ export function parseAiResponse(text: string, makeId: () => string, now: number)
     return { id, text: i.text.trim(), group: clean(i.group) };
   });
 
+  // Step numbers in prepAhead refer to the model's original (1-based) list, before empty steps are dropped.
+  const stepIdByNumber = new Map<number, string>();
+  const stepIds = new Map<object, string>();
+  (ai.steps ?? []).forEach((s, i) => {
+    if (!s.text.trim()) return;
+    const id = makeId();
+    stepIdByNumber.set(i + 1, id);
+    stepIds.set(s, id);
+  });
+
   const steps = stepsIn.map((s) => ({
-    id: makeId(),
+    id: stepIds.get(s)!,
     text: s.text.trim(),
     ingredientIds: [
       ...new Set(
@@ -172,6 +206,16 @@ export function parseAiResponse(text: string, makeId: () => string, now: number)
     ...new Set((ai.tags ?? []).map((t) => t.trim().replace(/^#/, '')).filter(Boolean)),
   ].slice(0, 5);
 
+  const prepAhead = (ai.prepAhead ?? [])
+    .map((p) => ({
+      text: p.text.trim(),
+      stepId: stepIdByNumber.get(Math.round(p.stepNumber)) ?? '',
+      leadMinutes: Math.max(1, Math.round(p.leadMinutes)),
+      emoji: clean(p.emoji),
+    }))
+    // Drop unknown steps and hints for the first step (nothing to start earlier than that).
+    .filter((p) => p.text && p.stepId && Number.isFinite(p.leadMinutes) && p.stepId !== steps[0]?.id);
+
   return {
     ok: true,
     recipe: {
@@ -184,6 +228,7 @@ export function parseAiResponse(text: string, makeId: () => string, now: number)
       totalTime: clean(ai.totalTime),
       ingredients,
       steps,
+      prepAhead,
       notes: clean(ai.notes),
       favorite: false,
       createdAt: now,

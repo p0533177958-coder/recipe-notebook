@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { IconEdit, IconShare, IconSource, IconStar } from '../components/Icons';
 import { IngredientList } from '../components/IngredientList';
+import { PrepCard } from '../components/PrepAhead';
 import { RecipeVisual } from '../components/RecipeVisual';
 import { ShareSheet } from '../components/ShareSheet';
 import { SourceSheet } from '../components/SourceSheet';
 import { Button, IconButton, PageHeader } from '../components/ui';
 import { db } from '../db';
+import { planPrep } from '../lib/prepAhead';
 import { draftForEdit, toggleFavorite } from '../lib/recipeActions';
 import { S } from '../strings.he';
 
@@ -110,6 +112,8 @@ export default function RecipeIntro() {
             ))}
           </div>
         )}
+
+        <PrepCard plan={planPrep(recipe)} />
 
         <section className="mt-6 rounded-card border border-line bg-surface p-4 shadow-soft" aria-labelledby="ing-h">
           <h2 id="ing-h" className="mb-2 text-xl font-bold">

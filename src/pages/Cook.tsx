@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { IconArrowLeft, IconArrowRight, IconClose, IconList, IconMic } from '../components/Icons';
 import { IngredientList } from '../components/IngredientList';
+import { PrepReminders } from '../components/PrepAhead';
 import { StepTimerButton, TimerBar } from '../components/TimerUI';
 import { Button, IconButton, Sheet, toast } from '../components/ui';
 import { MAX_COOK_FONT, MIN_COOK_FONT } from '../config';
@@ -10,6 +11,7 @@ import { db } from '../db';
 import { useTimers } from '../hooks/timers';
 import { useVoiceControl } from '../hooks/useVoiceControl';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { planPrep } from '../lib/prepAhead';
 import { markCooked } from '../lib/recipeActions';
 import { speak, stopSpeaking } from '../lib/speech';
 import { remainingMs, spokenDuration } from '../lib/timer';
@@ -44,6 +46,7 @@ function CookView({ recipe }: { recipe: Recipe }) {
   const stepIngredients = step.ingredientIds.map((x) => ingredientById.get(x)).filter((x) => !!x);
   const isLast = stepIndex === total - 1;
   const recipeRef = { id: recipe.id, title: recipe.title };
+  const prepPlan = useMemo(() => planPrep(recipe), [recipe]);
 
   const goTo = (i: number) => {
     if (i < 0 || i >= total || i === stepIndex) return;
@@ -215,6 +218,7 @@ function CookView({ recipe }: { recipe: Recipe }) {
         onTouchEnd={onTouchEnd}
       >
         <div key={step.id} className={dir === 'next' ? 'anim-next' : 'anim-prev'}>
+          <PrepReminders plan={prepPlan} stepIndex={stepIndex} recipe={recipeRef} runningFor={runningFor} />
           <p className="font-medium" style={{ fontSize: `${font}px`, lineHeight: 1.4 }}>
             {step.text}
           </p>

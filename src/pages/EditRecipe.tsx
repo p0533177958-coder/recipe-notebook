@@ -9,9 +9,10 @@ import { Button, ConfirmSheet, IconButton, PageHeader, toast } from '../componen
 import { db, newId } from '../db';
 import { forgetImageUrl } from '../hooks/useImageUrl';
 import { storeImages } from '../lib/image';
+import { leadLabel, planPrep } from '../lib/prepAhead';
 import { discardDraft } from '../lib/recipeActions';
 import { S } from '../strings.he';
-import { CATEGORIES, type Category, type Draft, type Ingredient, type Recipe, type Step } from '../types';
+import { CATEGORIES, type Category, type Draft, type Ingredient, type PrepHint, type Recipe, type Step } from '../types';
 
 const input =
   'min-h-12 w-full rounded-xl border border-line bg-bg px-3 text-base outline-none focus:border-primary placeholder:text-muted';
@@ -53,6 +54,7 @@ function cleanRecipe(r: Recipe): Recipe {
       timers: s.timers.filter((t) => t.seconds > 0).map((t) => ({ ...t, label: t.label.trim() || 'טיימר' })),
     }))
     .filter((s) => s.text);
+  const stepIds = new Set(steps.map((s) => s.id));
   return {
     ...r,
     title: r.title.trim(),
@@ -63,6 +65,7 @@ function cleanRecipe(r: Recipe): Recipe {
     notes: r.notes?.trim() || undefined,
     ingredients,
     steps,
+    prepAhead: r.prepAhead?.filter((p) => stepIds.has(p.stepId)),
   };
 }
 
@@ -350,6 +353,8 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
           </SortableArea>
         </Card>
 
+        <PrepEditor recipe={r} onChange={(prepAhead) => patch({ prepAhead, prepReviewed: true })} />
+
         <Card title={S.edit.notes}>
           <textarea
             value={r.notes ?? ''}
@@ -564,5 +569,36 @@ function StepEditor({
         </button>
       </div>
     </li>
+  );
+}
+
+/** Lists prep-ahead hints (AI and auto-detected) and lets the user remove wrong ones. */
+function PrepEditor({ recipe, onChange }: { recipe: Recipe; onChange: (hints: PrepHint[]) => void }) {
+  const plan = planPrep(recipe);
+  if (plan.length === 0) return null;
+  const remove = (i: number) =>
+    onChange(plan.filter((_, j) => j !== i).map(({ text, stepId, leadMinutes, emoji }) => ({ text, stepId, leadMinutes, emoji })));
+  return (
+    <Card title={S.prep.editTitle}>
+      <p className="-mt-2 mb-2 text-sm text-muted">{S.prep.editHint}</p>
+      <ul className="flex flex-col gap-2">
+        {plan.map((p, i) => (
+          <li key={`${p.stepId}-${i}`} className="flex items-center gap-2 rounded-xl bg-secondary/10 p-2">
+            <span className="text-xl" aria-hidden="true">
+              {p.emoji}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{p.text}</p>
+              <p className="text-sm text-muted">
+                {S.prep.takes(leadLabel(p.leadMinutes))} · {S.prep.neededAt(p.neededIndex + 1)}
+              </p>
+            </div>
+            <IconButton label={`${S.edit.deleteItem}: ${p.text}`} onClick={() => remove(i)} className="text-muted">
+              <IconTrash size={20} />
+            </IconButton>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

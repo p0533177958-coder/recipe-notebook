@@ -24,6 +24,9 @@ export type Step = {
   timers: StepTimer[];
 };
 
+/** Something to start ahead of time (preheat oven, soak, take butter out…), needed by stepId. */
+export type PrepHint = { text: string; stepId: string; leadMinutes: number; emoji?: string };
+
 export type Recipe = {
   id: string;
   title: string;
@@ -38,6 +41,10 @@ export type Recipe = {
   totalTime?: string;
   ingredients: Ingredient[];
   steps: Step[];
+  /** Prep-ahead hints suggested by the AI. Older recipes have none; they are detected locally. */
+  prepAhead?: PrepHint[];
+  /** Set once the user edited the hints; local detection then stops adding its own. */
+  prepReviewed?: boolean;
   notes?: string;
   favorite: boolean;
   createdAt: number;
