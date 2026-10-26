@@ -1,9 +1,10 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IconDownload, IconUpload } from '../components/Icons';
+import { IconCheck, IconDownload, IconUpload } from '../components/Icons';
 import { Button, PageHeader, toast } from '../components/ui';
 import { AI_STUDIO_URL, MAX_COOK_FONT, MIN_COOK_FONT } from '../config';
 import { backupFileName, downloadBlob, exportBackup, importFromText } from '../lib/backup';
+import { FONT_STYLES, loadAllFontStyles, type FontStyleId } from '../lib/fonts';
 import { AiError, checkApiKey } from '../lib/gemini';
 import { playChime, unlockAudio } from '../lib/sound';
 import { speak } from '../lib/speech';
@@ -64,6 +65,47 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         className="relative h-8 w-14 shrink-0 rounded-full bg-line transition peer-checked:bg-secondary peer-focus-visible:ring-2 peer-focus-visible:ring-primary after:absolute after:top-1 after:right-1 after:size-6 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:-translate-x-6"
       />
     </label>
+  );
+}
+
+/** One card per font style, each previewed in its own fonts. */
+function FontPicker({ value, onChange }: { value: FontStyleId; onChange: (v: FontStyleId) => void }) {
+  useEffect(() => loadAllFontStyles(), []);
+  return (
+    <div>
+      <p className="mb-1.5 font-medium">{S.settings.font}</p>
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={S.settings.font}>
+        {FONT_STYLES.map((f) => {
+          const on = value === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onChange(f.id)}
+              className={`flex min-h-28 flex-col items-start gap-1 rounded-2xl border-2 p-3 text-start transition active:scale-[0.98] ${
+                on ? 'border-primary bg-primary/5' : 'border-line bg-bg'
+              }`}
+            >
+              <span className="flex w-full items-center gap-1 text-sm text-muted">
+                <span className="flex-1">{f.name}</span>
+                {on && <IconCheck size={16} className="text-primary" />}
+              </span>
+              <span
+                className="text-xl leading-tight text-ink"
+                style={{ fontFamily: `${f.title}, 'Rubik', serif`, fontWeight: f.titleWeight }}
+              >
+                {S.settings.fontSampleTitle}
+              </span>
+              <span className="text-sm leading-snug text-muted" style={{ fontFamily: `${f.ui}, 'Rubik', sans-serif` }}>
+                {S.settings.fontSampleText}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -170,6 +212,7 @@ export default function Settings() {
         </Section>
 
         <Section title={S.settings.displaySection}>
+          <FontPicker value={s.font} onChange={(font) => updateSettings({ font })} />
           <Segmented<ThemeMode>
             label={S.settings.theme}
             value={s.theme}

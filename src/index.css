@@ -69,8 +69,8 @@
   --color-secondary: var(--c-secondary);
   --color-ink: var(--c-text);
   --color-muted: var(--c-muted);
-  --font-sans: 'Rubik', system-ui, sans-serif;
-  --font-serif: 'Frank Ruhl Libre', 'Rubik', serif;
+  --font-sans: var(--font-ui, 'Rubik'), 'Rubik', system-ui, sans-serif;
+  --font-serif: var(--font-title, 'Frank Ruhl Libre'), 'Rubik', serif;
   --radius-card: 16px;
   --shadow-soft: 0 2px 10px rgb(var(--c-shadow) / 0.07), 0 1px 2px rgb(var(--c-shadow) / 0.05);
   --shadow-lift: 0 10px 30px rgb(var(--c-shadow) / 0.16);
@@ -80,13 +80,18 @@ html,
 body {
   background: var(--c-bg);
   color: var(--c-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui, 'Rubik'), 'Rubik', system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }
 
 body {
   min-height: 100dvh;
+}
+
+/* Title fonts set their own weight: some display fonts exist in one weight only, and faux bold looks smudged. */
+.font-serif {
+  font-weight: var(--font-title-weight, 700);
 }
 
 button,

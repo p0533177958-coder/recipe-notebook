@@ -4,9 +4,11 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import './index.css';
 import { seedOnFirstRun } from './seed';
-import { applyTheme } from './settings';
+import { applyFontStyle } from './lib/fonts';
+import { applyTheme, getSettings } from './settings';
 
 applyTheme();
+applyFontStyle(getSettings().font);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 
 if ('serviceWorker' in navigator) registerSW({ immediate: true });

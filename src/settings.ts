@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { MIN_COOK_FONT } from './config';
+import { applyFontStyle, type FontStyleId } from './lib/fonts';
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
 export type ListView = 'grid' | 'rows';
@@ -12,6 +13,7 @@ export type Settings = {
   sort: SortMode;
   cookFontSize: number;
   speakTimers: boolean;
+  font: FontStyleId;
 };
 
 const KEY = 'rn-settings';
@@ -22,6 +24,7 @@ const DEFAULTS: Settings = {
   sort: 'recent',
   cookFontSize: 30,
   speakTimers: true,
+  font: 'classic',
 };
 
 function load(): Settings {
@@ -43,6 +46,7 @@ export function getSettings(): Settings {
 
 export function updateSettings(patch: Partial<Settings>): void {
   current = { ...current, ...patch };
+  if (patch.font) applyFontStyle(patch.font);
   try {
     localStorage.setItem(KEY, JSON.stringify(current));
   } catch {
