@@ -26,7 +26,6 @@ export const S = {
     clearSearch: 'ניקוי החיפוש',
     all: 'הכל',
     favorites: '⭐ מועדפים',
-    recentlyCooked: 'הכנתי לאחרונה',
     viewGrid: 'תצוגת כרטיסיות',
     viewRows: 'תצוגת שורות',
     sortLabel: 'מיון',

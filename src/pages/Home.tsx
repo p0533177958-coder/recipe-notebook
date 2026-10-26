@@ -82,22 +82,12 @@ export default function Home() {
     return sortRecipes(list, settings.sort);
   }, [recipes, filter, query, haystacks, settings.sort]);
 
-  const recent = useMemo(
-    () =>
-      (recipes ?? [])
-        .filter((r) => r.lastCookedAt)
-        .sort((a, b) => (b.lastCookedAt ?? 0) - (a.lastCookedAt ?? 0))
-        .slice(0, 10),
-    [recipes],
-  );
-
   const open = (r: Recipe) => navigate(`/recipe/${r.id}`);
   const draft = drafts[0];
 
   if (recipes === undefined) return <div className="min-h-dvh" />;
 
   const isEmpty = recipes.length === 0;
-  const searching = query.trim().length > 0 || filter !== 'all';
 
   return (
     <div className="mx-auto min-h-dvh max-w-3xl pb-32">
@@ -181,27 +171,6 @@ export default function Home() {
               </Chip>
             ))}
           </nav>
-
-          {recent.length > 0 && !searching && (
-            <section className="mt-5" aria-labelledby="recent-h">
-              <h2 id="recent-h" className="mb-2 px-4 text-lg font-bold">
-                {S.home.recentlyCooked}
-              </h2>
-              <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-2">
-                {recent.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => open(r)}
-                    className="w-32 shrink-0 overflow-hidden rounded-card border border-line bg-surface text-start shadow-soft transition active:scale-[0.98]"
-                  >
-                    <RecipeVisual recipe={r} className="h-20 w-full" emojiSize="2.2rem" />
-                    <p className="line-clamp-2 px-2 py-2 text-sm font-medium">{r.title}</p>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
 
           <div className="mt-4 flex items-center gap-2 px-4">
             <p className="flex-1 text-sm text-muted">{S.home.recipesCount(visible.length)}</p>
