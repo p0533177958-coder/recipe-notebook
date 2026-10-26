@@ -1,5 +1,9 @@
-/** Gemini model used for recipe extraction. Change here to switch models. */
-export const GEMINI_MODEL = 'gemini-2.5-flash';
+/**
+ * Gemini models for recipe extraction, in order of preference. Change here to switch models.
+ * If a model is unavailable for the key (retired, restricted, or out of free quota),
+ * the next one is tried. The "-latest" alias is a last resort that Google keeps pointing at a current model.
+ */
+export const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 export const AI_STUDIO_URL = 'https://aistudio.google.com/apikey';
 

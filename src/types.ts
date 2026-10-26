@@ -75,6 +75,8 @@ export type Draft = {
   /** Set when the draft is an edit of an already-saved recipe. */
   editingRecipeId?: string;
   errorCode?: string;
+  /** Technical detail of the last AI error (HTTP status, model, API message). */
+  errorDetail?: string;
 };
 
 /** Raw content received through the Web Share Target, written by the service worker. */

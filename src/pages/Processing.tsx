@@ -54,7 +54,8 @@ export default function Processing() {
         navigate(`/edit/${draftId}`, { replace: true });
       } catch (e) {
         const code: AiErrorCode = e instanceof AiError ? e.code : 'server';
-        await db.drafts.update(draftId, { status: 'error', errorCode: code, updatedAt: Date.now() });
+        const detail = e instanceof AiError ? e.detail : e instanceof Error ? e.message : String(e);
+        await db.drafts.update(draftId, { status: 'error', errorCode: code, errorDetail: detail, updatedAt: Date.now() });
       } finally {
         inFlight.delete(draftId);
       }
@@ -96,6 +97,11 @@ export default function Processing() {
         <p role="alert" className="text-xl font-medium">
           {S.errors[code] ?? S.errors.generic}
         </p>
+        {draft.errorDetail && (
+          <p dir="ltr" className="max-w-full break-words rounded-xl bg-surface-2 px-3 py-2 text-start font-mono text-xs text-muted">
+            {draft.errorDetail}
+          </p>
+        )}
         <div className="mt-2 flex w-full flex-col gap-3">
           {needsSettings ? (
             <Button big onClick={() => navigate('/settings')}>

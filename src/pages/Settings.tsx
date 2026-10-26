@@ -79,7 +79,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const [key, setKey] = useState(s.apiKey);
   const [showKey, setShowKey] = useState(false);
-  const [keyStatus, setKeyStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [keyStatus, setKeyStatus] = useState<{ ok: boolean; text: string; detail?: string } | null>(null);
   const [checking, setChecking] = useState(false);
   const [notif, setNotif] = useState(notificationState);
   const importRef = useRef<HTMLInputElement>(null);
@@ -94,11 +94,12 @@ export default function Settings() {
     setChecking(true);
     setKeyStatus(null);
     try {
-      await checkApiKey(key);
-      setKeyStatus({ ok: true, text: S.settings.keyOk });
+      const model = await checkApiKey(key);
+      setKeyStatus({ ok: true, text: S.settings.keyOk, detail: model });
     } catch (e) {
       const code = e instanceof AiError ? e.code : 'server';
-      setKeyStatus({ ok: false, text: S.errors[code] ?? S.errors.generic });
+      const detail = e instanceof AiError ? e.detail : String(e);
+      setKeyStatus({ ok: false, text: S.errors[code] ?? S.errors.generic, detail });
     } finally {
       setChecking(false);
     }
@@ -160,6 +161,11 @@ export default function Settings() {
               </p>
             )}
           </div>
+          {keyStatus?.detail && (
+            <p dir="ltr" className="break-words rounded-xl bg-surface-2 px-3 py-2 font-mono text-xs text-muted">
+              {keyStatus.detail}
+            </p>
+          )}
           <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">ℹ️ {S.settings.privacyNote}</p>
         </Section>
 
