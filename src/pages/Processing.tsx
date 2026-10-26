@@ -1,8 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { IconCheck } from '../components/Icons';
 import { Button } from '../components/ui';
 import { db } from '../db';
+import { initialProgress, progressReducer, type AiEvent, type AiProgress, type LogItem } from '../lib/aiProgress';
 import { AiError, extractRecipe, type AiErrorCode } from '../lib/gemini';
 import { discardDraft } from '../lib/recipeActions';
 import { getSettings } from '../settings';
@@ -10,22 +12,102 @@ import { S } from '../strings.he';
 
 const inFlight = new Set<string>();
 
-function CookingAnimation() {
+// Progress lives outside React so it survives re-mounts while a request is running.
+const progress = new Map<string, AiProgress>();
+const listeners = new Set<() => void>();
+
+function emit(id: string, e: AiEvent) {
+  progress.set(id, progressReducer(progress.get(id) ?? initialProgress, e));
+  listeners.forEach((l) => l());
+}
+
+function useProgress(id: string): AiProgress {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => progress.get(id) ?? initialProgress,
+  );
+}
+
+/**
+ * The shown percent. It only creeps forward on its own while waiting for the model's
+ * first words (the one phase with no real signal), and never goes backwards.
+ */
+function useShownPercent(p: AiProgress): number {
+  const [now, setNow] = useState(() => Date.now());
+  const waitStart = useRef<number | null>(null);
+  const shown = useRef(0);
+  useEffect(() => {
+    if (!p.waiting) {
+      waitStart.current = null;
+      return;
+    }
+    waitStart.current ??= Date.now();
+    const iv = setInterval(() => setNow(Date.now()), 300);
+    return () => clearInterval(iv);
+  }, [p.waiting]);
+  let value = p.percent;
+  if (p.waiting && waitStart.current !== null) {
+    const t = (now - waitStart.current) / 1000;
+    value = Math.max(value, Math.min(29, p.percent + 17 * (1 - Math.exp(-t / 15))));
+  }
+  shown.current = Math.max(shown.current, Math.round(value));
+  return shown.current;
+}
+
+function LogLine({ item }: { item: LogItem }) {
   return (
-    <svg viewBox="0 0 200 170" className="mx-auto w-56" aria-hidden="true">
-      <g fill="none" stroke="var(--c-muted)" strokeWidth="4" strokeLinecap="round" opacity="0.6">
-        <path d="M78 52c-8-10 8-16 0-28" style={{ animation: 'steam 2s ease-in-out infinite' }} />
-        <path d="M100 48c-8-10 8-16 0-28" style={{ animation: 'steam 2s ease-in-out 0.5s infinite' }} />
-        <path d="M122 52c-8-10 8-16 0-28" style={{ animation: 'steam 2s ease-in-out 1s infinite' }} />
-      </g>
-      <g style={{ transformOrigin: '100px 120px', animation: 'stir 1.6s ease-in-out infinite' }}>
-        <rect x="95" y="20" width="10" height="80" rx="5" fill="#A86B3C" />
-        <ellipse cx="100" cy="100" rx="13" ry="18" fill="#C68A55" />
-      </g>
-      <ellipse cx="100" cy="158" rx="72" ry="8" fill="var(--c-border)" />
-      <path d="M36 80h128l-10 64a12 12 0 0 1-12 10H58a12 12 0 0 1-12-10z" fill="var(--c-primary)" />
-      <rect x="28" y="72" width="144" height="14" rx="7" fill="var(--c-primary-strong)" />
-    </svg>
+    <li className="anim-fade-up flex items-start gap-3 py-1.5">
+      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center" aria-hidden="true">
+        {item.state === 'done' && (
+          <span className="flex size-6 items-center justify-center rounded-full bg-secondary text-white">
+            <IconCheck size={14} />
+          </span>
+        )}
+        {item.state === 'active' && (
+          <span className="size-5 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
+        )}
+        {item.state === 'warn' && <span className="text-lg leading-none">⚠️</span>}
+      </span>
+      <span className={`min-w-0 flex-1 text-start text-lg ${item.state === 'active' ? 'font-medium' : 'text-muted'}`}>
+        {item.text}
+      </span>
+    </li>
+  );
+}
+
+function ProgressView({ id }: { id: string }) {
+  const p = useProgress(id);
+  const percent = useShownPercent(p);
+  const current = [...p.log].reverse().find((l) => l.state === 'active');
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10" aria-busy="true">
+      <div className="text-center">
+        <p className="text-5xl" aria-hidden="true">
+          {p.emoji ?? '📖'}
+        </p>
+        <p className="mt-3 font-serif text-6xl font-bold tabular-nums text-primary" dir="ltr">
+          {percent}%
+        </p>
+      </div>
+      <div
+        className="mt-4 h-3 w-full overflow-hidden rounded-full bg-surface-2"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-valuetext={current?.text}
+      >
+        <div className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out" style={{ width: `${percent}%` }} />
+      </div>
+      <ul className="mt-6 flex flex-col" aria-live="polite">
+        {p.log.map((item) => (
+          <LogLine key={item.key} item={item} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -33,24 +115,24 @@ export default function Processing() {
   const { draftId = '' } = useParams();
   const navigate = useNavigate();
   const draft = useLiveQuery(() => db.drafts.get(draftId), [draftId], null);
-  const [msg, setMsg] = useState(0);
-
-  useEffect(() => {
-    const iv = setInterval(() => setMsg((m) => (m + 1) % S.processing.messages.length), 2200);
-    return () => clearInterval(iv);
-  }, []);
 
   useEffect(() => {
     if (!draft || draft.status !== 'pending' || inFlight.has(draftId)) return;
     inFlight.add(draftId);
+    progress.set(draftId, initialProgress);
+    const report = (e: AiEvent) => emit(draftId, e);
     void (async () => {
       try {
         const rows = await db.images.bulkGet(draft.sourceImageIds);
         const images = rows.filter((r) => !!r).map((r) => r.blob);
-        const recipe = await extractRecipe(getSettings().apiKey, { text: draft.text, images });
+        const recipe = await extractRecipe(getSettings().apiKey, { text: draft.text, images }, report);
         recipe.sourceImageIds = draft.sourceImageIds.length ? draft.sourceImageIds : undefined;
         recipe.sourceText = draft.text;
+        report({ type: 'saving' });
         await db.drafts.update(draftId, { status: 'ready', recipe, updatedAt: Date.now(), errorCode: undefined });
+        report({ type: 'done' });
+        // A short beat at 100% so the finished state is visible.
+        await new Promise((r) => setTimeout(r, 400));
         navigate(`/edit/${draftId}`, { replace: true });
       } catch (e) {
         const code: AiErrorCode = e instanceof AiError ? e.code : 'server';
@@ -64,7 +146,8 @@ export default function Processing() {
 
   if (draft === null) return <div className="min-h-dvh" />;
   if (!draft) return <Navigate to="/" replace />;
-  if (draft.status === 'ready') return <Navigate to={`/edit/${draftId}`} replace />;
+  // While finishing, stay on the progress screen until the 100% beat is over.
+  if (draft.status === 'ready' && !inFlight.has(draftId)) return <Navigate to={`/edit/${draftId}`} replace />;
   if (draft.status === 'images') return <Navigate to={`/add/images/${draftId}`} replace />;
 
   const retry = async () => {
@@ -134,12 +217,5 @@ export default function Processing() {
     );
   }
 
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-6 text-center" aria-busy="true">
-      <CookingAnimation />
-      <p key={msg} className="anim-fade-up font-serif text-2xl font-bold" aria-live="polite">
-        {S.processing.messages[msg]}
-      </p>
-    </div>
-  );
+  return <ProgressView id={draftId} />;
 }
