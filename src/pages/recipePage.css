@@ -16,9 +16,7 @@
   inset: 0;
   z-index: 40;
   display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+  flex-direction: column;
   color: var(--rp-ink);
   background:
     radial-gradient(ellipse at center, transparent 55%, rgb(120 80 40 / 0.18) 100%),
@@ -247,10 +245,11 @@
 }
 
 .rp-group {
-  break-inside: avoid;
+  /* A group may continue in the next column; single lines stay whole (.rp-ing). */
   margin-bottom: 0.35em;
 }
 .rp-group-name {
+  break-after: avoid;
   font-size: 0.85em;
   font-weight: 700;
   color: var(--rp-leaf);
@@ -362,5 +361,124 @@
   }
   @page {
     margin: 8mm;
+  }
+}
+
+/* Pages: one card per page, swiped sideways (RTL: the next page comes from the left). */
+.rp-pages {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.rp-pages::-webkit-scrollbar {
+  display: none;
+}
+.rp-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+}
+.rp-multi .rp-page {
+  padding-bottom: calc(26px + env(safe-area-inset-bottom));
+}
+
+/* Continuation pages: a small header instead of the full one. */
+.rp-head-mini .rp-title {
+  font-size: 1.6em;
+}
+.rp-body[data-layout='steps2'] .rp-steps-list {
+  columns: 2;
+  column-gap: 1.8em;
+}
+
+.rp-dots {
+  position: fixed;
+  bottom: max(6px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 41;
+  display: flex;
+  gap: 2px;
+}
+.rp-dots button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rp-dots button::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rp-line) 35%, transparent);
+  transition: width 0.2s;
+}
+.rp-dots button.on::before {
+  width: 20px;
+  background: var(--rp-accent);
+}
+
+@media print {
+  .rp-pages {
+    display: block;
+    overflow: visible;
+  }
+  .rp-page {
+    height: 100vh;
+    padding: 0;
+    break-after: page;
+  }
+  .rp-dots {
+    display: none;
+  }
+}
+
+/* While the pages are being arranged they are measured but not shown. */
+.rp-pages {
+  transition: opacity 0.25s ease-out;
+}
+.rp-arranging {
+  opacity: 0;
+}
+.rp-wait {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--rp-soft);
+  pointer-events: none;
+}
+
+/* Narrow cards (small phones): medallion above the title, so the title gets the full width. */
+.rp-sheet {
+  container-type: inline-size;
+}
+@container (max-width: 420px) {
+  .rp-head:not(.rp-head-mini) {
+    flex-direction: column;
+    gap: 0.5em;
+  }
+  .rp-head:not(.rp-head-mini) .rp-medal {
+    width: 4.8em;
+    height: 4.8em;
+  }
+  .rp-head:not(.rp-head-mini) .rp-titles {
+    padding-inline-end: 0;
+  }
+  .rp-head:not(.rp-head-mini) .rp-title {
+    font-size: 2.2em;
   }
 }
