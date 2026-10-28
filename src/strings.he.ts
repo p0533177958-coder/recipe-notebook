@@ -305,6 +305,8 @@ export const S = {
     micOff: 'כיבוי שליטה קולית',
     listening: 'מקשיבים…',
     voiceHelp: 'אפשר לומר: הבא · הקודם · הפעל טיימר · עצור · כמה זמן נשאר · תקריא · מצרכים',
+    micDenied: 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן, ליד כתובת האתר.',
+    micMissing: 'לא נמצא מיקרופון במכשיר.',
     noTimers: 'אין טיימרים פעילים',
     noTimerInStep: 'אין טיימר בשלב הזה',
     wakeLockOn: 'המסך יישאר דלוק בזמן הבישול',
@@ -330,7 +332,7 @@ export const S = {
   voice: {
     noStepIngredients: 'אין מצרכים מיוחדים בשלב הזה',
     stepPrefix: (i: number) => `שלב ${i}.`,
-    started: (label: string, time: string) => `הפעלתי טיימר ${label} ל${time}`,
+    started: (label: string, time: string) => `הטיימר הופעל: ${label}, ${time}`,
     lastStep: 'זה השלב האחרון',
     firstStep: 'זה השלב הראשון',
   },

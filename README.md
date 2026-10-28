@@ -108,6 +108,7 @@ git push -u origin main
 ## צילומי מסך
 
 `npm run build`, אחר כך `npx vite preview --port 4180`, ואז `node scripts/screenshots.mjs`: צילום של כל מסך במצב בהיר וכהה (393×852) לתיקייה `screenshots/`. הסקריפט משתמש ב-Microsoft Edge המותקן. `node scripts/find-emoji.mjs` בודק שלא נשארו אימוג'י בממשק.
+`node scripts/voice-check.mjs` בודק את השליטה הקולית בדפדפן אמיתי, עם מיקרופון מדומה שאומר את הפקודות (24 בדיקות).
 
 ## מבנה הקוד
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from '../components/ui';
 import { isSpeaking } from '../lib/speech';
 import { matchVoiceCommand, type VoiceCommand } from '../lib/voice';
+import { S } from '../strings.he';
 
 // Minimal typings: SpeechRecognition is not in TypeScript's DOM lib.
 type RecognitionResult = { isFinal: boolean; 0: { transcript: string } };
@@ -55,14 +57,24 @@ export function useVoiceControl(onCommand: (cmd: VoiceCommand) => void) {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         if (!res.isFinal) continue;
-        // Ignore what the app itself is saying aloud.
-        if (isSpeaking()) continue;
         const cmd = matchVoiceCommand(res[0].transcript);
-        if (cmd) handler.current(cmd);
+        if (!cmd) continue;
+        // Ignore what the app itself is saying aloud (its own echo), except "עצור": that is exactly
+        // what people say over a timer announcement, and it can only silence or stop reading.
+        if (cmd !== 'stop' && isSpeaking()) continue;
+        handler.current(cmd);
       }
     };
     r.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') stop();
+      // Permanent problems: stop, and say why (otherwise the mic just turns off silently).
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        stop();
+        toast(S.cook.micDenied);
+      } else if (e.error === 'audio-capture') {
+        stop();
+        toast(S.cook.micMissing);
+      }
+      // Anything else (no-speech, network, aborted) ends the session; onend restarts it.
     };
     r.onend = () => {
       if (!wanted.current) return;

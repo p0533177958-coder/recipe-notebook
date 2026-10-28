@@ -27,11 +27,20 @@ export function speak(text: string, opts: { interrupt?: boolean } = {}): void {
   const v = pickVoice();
   if (v) u.voice = v;
   u.rate = 0.95;
+  u.onend = () => (lastSpokeAt = Date.now());
+  u.onerror = () => (lastSpokeAt = Date.now());
   synth.speak(u);
 }
 
+/** When the app last finished saying something aloud. */
+let lastSpokeAt = 0;
+/** Speech recognition delivers results a moment after hearing them; ignore that echo of our own voice. */
+const ECHO_MS = 800;
+
+/** True while the app is speaking, or just finished (so the microphone does not take its own words as commands). */
 export function isSpeaking(): boolean {
-  return ttsSupported && window.speechSynthesis.speaking;
+  if (!ttsSupported) return false;
+  return window.speechSynthesis.speaking || Date.now() - lastSpokeAt < ECHO_MS;
 }
 
 export function stopSpeaking(): void {
