@@ -11,18 +11,39 @@
 @import '@fontsource/frank-ruhl-libre/hebrew-700.css';
 @import '@fontsource/frank-ruhl-libre/latin-700.css';
 
+/*
+ * Design tokens. Rules (see DECISIONS.md):
+ * - No pure black or white anywhere; the scrim behind sheets is a translucent dark brown.
+ * - primary (terracotta): the one main action, selected state, one highlight. secondary (olive): success / done only.
+ * - muted text keeps at least 4.5:1 contrast against bg and surface-2 in both themes.
+ * - Shadows only in light mode; in dark mode cards get a thin `line` ring instead.
+ */
 :root {
   --c-bg: #fbf6ee;
-  --c-surface: #ffffff;
+  --c-surface: #fffdf9;
   --c-surface-2: #f5ede1;
   --c-border: #eadfcf;
   --c-primary: #c8553d;
   --c-primary-strong: #a8432e;
-  --c-on-primary: #ffffff;
+  --c-on-primary: #fffaf3;
   --c-secondary: #6b7f3a;
+  --c-on-secondary: #fffaf3;
   --c-text: #3b2f2a;
-  --c-muted: #8a7b70;
-  --c-shadow: 59 47 42;
+  --c-muted: #6f6156; /* was #8a7b70: 3.8:1 on bg, too low */
+  --c-scrim: rgb(43 28 18 / 0.45);
+  --c-shadow-soft: 0 2px 10px rgb(59 47 42 / 0.07), 0 1px 2px rgb(59 47 42 / 0.05);
+  --c-shadow-lift: 0 10px 30px rgb(59 47 42 / 0.16);
+  /* Category tints: warm pastels with matching saturation and lightness. */
+  --cat-1: #f3dcc0;
+  --cat-2: #f0d2c3;
+  --cat-3: #ebcfc8;
+  --cat-4: #ebdcbf;
+  --cat-5: #dbe2c3;
+  --cat-6: #f1d6bd;
+  --cat-7: #eed9c0;
+  --cat-8: #efd3d2;
+  --cat-9: #ecdcc4;
+  --cat-10: #e6dccf;
   color-scheme: light;
 }
 
@@ -36,9 +57,23 @@
     --c-primary-strong: #ec8f78;
     --c-on-primary: #1f1a17;
     --c-secondary: #9db363;
+    --c-on-secondary: #1f1a17;
     --c-text: #f3eae0;
     --c-muted: #b5a698;
-    --c-shadow: 0 0 0;
+    --c-scrim: rgb(10 6 4 / 0.6);
+    --c-shadow-soft: 0 0 0 1px var(--c-border);
+    --c-shadow-lift: 0 0 0 1px var(--c-border);
+    /* Deep, muted versions of the same tints. */
+    --cat-1: #4a3a2a;
+    --cat-2: #4a342b;
+    --cat-3: #47312d;
+    --cat-4: #463b2a;
+    --cat-5: #3a3f2c;
+    --cat-6: #4a382a;
+    --cat-7: #473a2b;
+    --cat-8: #47322f;
+    --cat-9: #463b2d;
+    --cat-10: #3f3832;
     color-scheme: dark;
   }
 }
@@ -52,10 +87,46 @@
   --c-primary-strong: #ec8f78;
   --c-on-primary: #1f1a17;
   --c-secondary: #9db363;
+  --c-on-secondary: #1f1a17;
   --c-text: #f3eae0;
   --c-muted: #b5a698;
-  --c-shadow: 0 0 0;
+  --c-scrim: rgb(10 6 4 / 0.6);
+  --c-shadow-soft: 0 0 0 1px var(--c-border);
+  --c-shadow-lift: 0 0 0 1px var(--c-border);
+  --cat-1: #4a3a2a;
+  --cat-2: #4a342b;
+  --cat-3: #47312d;
+  --cat-4: #463b2a;
+  --cat-5: #3a3f2c;
+  --cat-6: #4a382a;
+  --cat-7: #473a2b;
+  --cat-8: #47322f;
+  --cat-9: #463b2d;
+  --cat-10: #3f3832;
   color-scheme: dark;
+}
+
+/* Fixed type scale: 12 / 14 / 16 / 18 / 22 / 28 / 36. No other sizes (cook-mode step text is set by the user). */
+@theme {
+  --text-*: initial;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.5;
+  --text-sm: 14px;
+  --text-sm--line-height: 1.5;
+  --text-base: 16px;
+  --text-base--line-height: 1.5;
+  --text-lg: 18px;
+  --text-lg--line-height: 1.5;
+  --text-xl: 22px;
+  --text-xl--line-height: 1.3;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 36px;
+  --text-3xl--line-height: 1.2;
+  /* One easing curve, three durations. */
+  --ease-app: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @theme inline {
@@ -67,13 +138,17 @@
   --color-primary-strong: var(--c-primary-strong);
   --color-on-primary: var(--c-on-primary);
   --color-secondary: var(--c-secondary);
+  --color-on-secondary: var(--c-on-secondary);
   --color-ink: var(--c-text);
   --color-muted: var(--c-muted);
+  --color-scrim: var(--c-scrim);
   --font-sans: var(--font-ui, 'Rubik'), 'Rubik', system-ui, sans-serif;
   --font-serif: var(--font-title, 'Frank Ruhl Libre'), 'Rubik', serif;
+  /* Radii: 12 small parts, 16 cards, 24 sheets and the hero image, full for round buttons and chips. */
   --radius-card: 16px;
-  --shadow-soft: 0 2px 10px rgb(var(--c-shadow) / 0.07), 0 1px 2px rgb(var(--c-shadow) / 0.05);
-  --shadow-lift: 0 10px 30px rgb(var(--c-shadow) / 0.16);
+  --radius-sheet: 24px;
+  --shadow-soft: var(--c-shadow-soft);
+  --shadow-lift: var(--c-shadow-lift);
 }
 
 html,
@@ -81,6 +156,7 @@ body {
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-ui, 'Rubik'), 'Rubik', system-ui, sans-serif;
+  line-height: 1.5;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }
@@ -89,9 +165,27 @@ body {
   min-height: 100dvh;
 }
 
-/* Title fonts set their own weight: some display fonts exist in one weight only, and faux bold looks smudged. */
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  text-wrap: balance;
+}
+p,
+li {
+  text-wrap: pretty;
+}
+
+/* Title fonts set their own weight: some display fonts exist in one weight only, and faux bold looks smudged.
+   The title font is used only for the app name, recipe names and screen titles. */
 .font-serif {
   font-weight: var(--font-title-weight, 700);
+  line-height: 1.2;
+}
+
+/* Numbers that change in place (timers, percentages) keep a fixed width so they don't "dance". */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 button,
@@ -210,21 +304,186 @@ button,
   }
 }
 
+/* Motion: three durations only (150 / 250 / 400ms) and one curve. */
 .anim-fade-up {
-  animation: fade-up 0.28s ease-out both;
+  animation: fade-up 250ms var(--ease-app) both;
 }
 .anim-fade-in {
-  animation: fade-in 0.2s ease-out both;
+  animation: fade-in 250ms var(--ease-app) both;
 }
 .anim-sheet {
-  animation: sheet-up 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: sheet-up 250ms var(--ease-app) both;
 }
 /* In RTL, the next step arrives from the left. */
 .anim-next {
-  animation: slide-from-left 0.26s ease-out both;
+  animation: slide-from-left 250ms var(--ease-app) both;
 }
 .anim-prev {
-  animation: slide-from-right 0.26s ease-out both;
+  animation: slide-from-right 250ms var(--ease-app) both;
+}
+/* Lists animate in once, staggered 30ms per card (index set in --i). */
+.anim-stagger {
+  animation: fade-up 250ms var(--ease-app) both;
+  animation-delay: calc(min(var(--i, 0), 12) * 30ms);
+}
+
+/* Finish screen: a drawn check mark and a short burst of confetti (~1.2s). Under reduced motion the
+   global rule ends every animation at once, so the check is simply shown, fully drawn. */
+.done-ring {
+  stroke-dasharray: 277;
+  stroke-dashoffset: 277;
+  animation: draw 400ms var(--ease-app) forwards;
+}
+.done-tick {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: draw 400ms var(--ease-app) 300ms forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.done-confetti span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti 1000ms var(--ease-app) forwards;
+}
+@keyframes confetti {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y) + 40px)) rotate(var(--r));
+  }
+}
+
+/* Skeleton loading: a soft shimmer on surface-2. */
+@keyframes shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  background: var(--c-surface-2);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Our own form controls instead of the browser defaults. */
+.ctl-input {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  padding-inline: 12px;
+  outline: none;
+  transition: border-color 150ms var(--ease-app), box-shadow 150ms var(--ease-app);
+}
+textarea.ctl-input {
+  resize: none;
+  padding-block: 12px;
+}
+/* <details> summaries get our own arrow instead of the browser triangle. */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-inline-start: 8px;
+  border-inline-end: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-3px);
+  transition: transform 150ms var(--ease-app);
+}
+details[open] > summary::after {
+  transform: rotate(225deg) translateY(-1px);
+}
+.ctl-input::placeholder {
+  color: var(--c-muted);
+}
+.ctl-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-primary) 18%, transparent);
+}
+/* Number inputs: no browser spinners. */
+.ctl-input[type='number'] {
+  appearance: textfield;
+}
+.ctl-input[type='number']::-webkit-inner-spin-button,
+.ctl-input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input[type='search']::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+/* Range slider */
+.ctl-range {
+  appearance: none;
+  width: 100%;
+  height: 48px;
+  background: transparent;
+}
+.ctl-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+}
+.ctl-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -11px;
+  border-radius: 999px;
+  background: var(--c-primary);
+  border: 3px solid var(--c-surface);
+  box-shadow: var(--c-shadow-soft);
+}
+.ctl-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+}
+.ctl-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--c-primary);
+  border: 3px solid var(--c-surface);
+}
+
+/* View transitions between screens (where supported): a short cross-fade; the recipe image morphs. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 250ms;
+  animation-timing-function: var(--ease-app);
+}
+::view-transition-group(*) {
+  animation-duration: 400ms;
+  animation-timing-function: var(--ease-app);
 }
 .anim-pulse {
   animation: pulse-ring 1.2s ease-out infinite;
@@ -238,7 +497,13 @@ button,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

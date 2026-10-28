@@ -43,6 +43,20 @@ export const backupSchema = z.object({
   exportedAt: z.number(),
   recipes: z.array(recipeSchema),
   images: z.array(z.object({ id: z.string(), dataUrl: z.string() })).default([]),
+  // Added in version 2 of the file format; older backups simply have none.
+  shopping: z
+    .array(
+      z.object({
+        id: z.string(),
+        recipeId: z.string().optional(),
+        recipeTitle: z.string(),
+        text: z.string(),
+        checked: z.boolean(),
+        createdAt: z.number(),
+        order: z.number(),
+      }),
+    )
+    .default([]),
 });
 
 export type BackupFile = z.infer<typeof backupSchema>;

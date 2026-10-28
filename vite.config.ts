@@ -50,12 +50,18 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#FBF6EE',
-        theme_color: '#C8553D',
+        theme_color: '#FBF6EE',
         categories: ['food', 'lifestyle'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        // Long-press shortcuts on the home-screen icon (handled by query parameters on the home screen).
+        shortcuts: [
+          { name: 'הוספת מתכון', short_name: 'הוספה', url: `${base}?add=1`, icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'רשימת קניות', short_name: 'קניות', url: `${base}shopping`, icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'מה נבשל היום?', short_name: 'מה נבשל?', url: `${base}?random=1`, icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
         ],
         share_target: {
           action: `${base}share-target`,

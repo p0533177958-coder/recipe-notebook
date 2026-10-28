@@ -98,12 +98,12 @@ describe('progressReducer', () => {
     ]);
     const texts = s.log.map((l) => l.text);
     expect(texts).toEqual([
-      'הכנתי את התמונה',
+      'התמונה מוכנה',
       'המתכון נשלח',
-      'מצאתי את המתכון: "עוגת שמרים"',
-      'זיהיתי 3 מצרכים',
-      'מחלק לשלבים (2): מתפיחים שעה',
-      'הוספתי טיימר אחד',
+      'מצאנו את המתכון: "עוגת שמרים"',
+      'זוהו 3 מצרכים',
+      'מחלקים לשלבים (2): מתפיחים שעה',
+      'נוסף טיימר אחד',
     ]);
     expect(texts.join(' ')).not.toMatch(/gemini/i);
     expect(s.log.find((l) => l.key === 'steps')?.state).toBe('active');
@@ -114,7 +114,7 @@ describe('progressReducer', () => {
   it('is "waiting" only between sending and the first words', () => {
     const sent = run([{ type: 'request', model: 'm' }]);
     expect(sent.waiting).toBe(true);
-    expect(sent.log.at(-1)).toMatchObject({ text: 'שולח את המתכון לעיבוד…', state: 'active' });
+    expect(sent.log.at(-1)).toMatchObject({ text: 'שולחים את המתכון לעיבוד…', state: 'active' });
     expect(progressReducer(sent, { type: 'partial', text: '{"isRecipe":true' }).waiting).toBe(false);
   });
 
@@ -127,9 +127,9 @@ describe('progressReducer', () => {
       { type: 'invalid-retry' },
     ]);
     expect(s.log.filter((l) => l.state === 'warn').map((l) => l.text)).toEqual([
-      'נגמרה המכסה במודל הראשי, עובר לחלופי',
-      'השרת עמוס, מנסה שוב…',
-      'התשובה לא הייתה תקינה, מבקש שוב…',
+      'נגמרה המכסה במודל הראשי, עוברים לחלופי',
+      'השרת עמוס, מנסים שוב…',
+      'התשובה לא הייתה תקינה, מבקשים שוב…',
     ]);
   });
 
@@ -176,7 +176,7 @@ describe('questions while streaming', () => {
     expect(p.prep).toBe(1);
     const s = progressReducer(initialProgress, { type: 'partial', text: withQ });
     expect(s.log.find((l) => l.key === 'questions')).toMatchObject({
-      text: 'יש 2 שורות לא ברורות – אשאל אותך עליהן',
+      text: 'יש 2 שורות לא ברורות, נשאל אתכם עליהן',
       state: 'warn',
     });
   });

@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importFromText } from '../lib/backup';
 import { storeImages } from '../lib/image';
 import { createDraft } from '../lib/recipeActions';
 import { S } from '../strings.he';
 import { IconCamera, IconClipboard, IconFile, IconImage, IconPlus, IconShare } from './Icons';
-import { Button, Sheet, SheetItem, toast } from './ui';
+import { Button, Sheet, SheetItem, Spinner, toast } from './ui';
 
 /** Shared logic for the four ways of adding a recipe. */
 export function useAddActions() {
@@ -124,11 +124,28 @@ export function ShareHelpSheet({ open, onClose }: { open: boolean; onClose: () =
   );
 }
 
-/** Floating "+" button (bottom-left in RTL) that opens the add menu. */
-export function AddFab() {
+/**
+ * Floating add button (bottom-left in RTL). Extended with its label while scrolling up or at the top,
+ * shrinks to a circle while scrolling down. `autoOpen` opens the menu (home-screen shortcut).
+ */
+export function AddFab({ autoOpen = false }: { autoOpen?: boolean }) {
   const actions = useAddActions();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [help, setHelp] = useState(false);
+  const [extended, setExtended] = useState(true);
+
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 6) return;
+      setExtended(y < 40 || y < last);
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <>
       {actions.inputs}
@@ -138,9 +155,17 @@ export function AddFab() {
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
         disabled={actions.busy}
-        className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-5 z-30 flex size-16 items-center justify-center rounded-full bg-primary text-on-primary shadow-lift transition active:scale-95 disabled:opacity-60"
+        className={`fixed bottom-[calc(24px+env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] z-30 flex h-14 items-center justify-center gap-2 overflow-hidden rounded-full bg-primary text-on-primary shadow-lift transition-[width,transform] duration-[250ms] active:scale-[0.97] disabled:opacity-60 ${
+          extended ? 'w-[156px] px-5' : 'w-14'
+        }`}
       >
-        {actions.busy ? <span className="size-6 animate-spin rounded-full border-3 border-current border-t-transparent" /> : <IconPlus size={32} />}
+        {actions.busy ? <Spinner size={22} /> : <IconPlus size={26} className="shrink-0" />}
+        <span
+          className={`text-base font-medium whitespace-nowrap transition-opacity duration-150 ${extended ? 'opacity-100' : 'w-0 opacity-0'}`}
+          aria-hidden="true"
+        >
+          {S.add.fab}
+        </span>
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title={S.add.fab}>
         <AddMenuItems actions={actions} onPick={() => setOpen(false)} onShareHelp={() => setHelp(true)} />

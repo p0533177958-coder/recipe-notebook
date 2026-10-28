@@ -1,28 +1,18 @@
 import type { Category } from '../types';
 
-/** Warm background tints for recipes without a photo, picked by category. */
+/**
+ * Warm background tints for recipes without a photo, picked by category.
+ * The values are CSS tokens (src/index.css): matched pastels in light mode, deep muted tones in dark mode.
+ */
 export const CATEGORY_COLORS: Record<Category, string> = {
-  'בוקר': '#F6D9A8',
-  'ארוחות צהריים': '#F2C4A6',
-  'ארוחות ערב': '#E8B4A0',
-  'תוספות': '#E4D3A2',
-  'סלטים': '#CFDDA8',
-  'מרקים': '#F0C08E',
-  'אפייה': '#EBCB9B',
-  'קינוחים': '#F2C1C4',
-  'שבת וחגים': '#E9CFA0',
-  'אחר': '#E6D8C6',
-};
-
-export const CATEGORY_EMOJI: Record<Category, string> = {
-  'בוקר': '🍳',
-  'ארוחות צהריים': '🍲',
-  'ארוחות ערב': '🥘',
-  'תוספות': '🍚',
-  'סלטים': '🥗',
-  'מרקים': '🍜',
-  'אפייה': '🍞',
-  'קינוחים': '🍰',
-  'שבת וחגים': '🕯️',
-  'אחר': '🍽️',
+  'בוקר': 'var(--cat-1)',
+  'ארוחות צהריים': 'var(--cat-2)',
+  'ארוחות ערב': 'var(--cat-3)',
+  'תוספות': 'var(--cat-4)',
+  'סלטים': 'var(--cat-5)',
+  'מרקים': 'var(--cat-6)',
+  'אפייה': 'var(--cat-7)',
+  'קינוחים': 'var(--cat-8)',
+  'שבת וחגים': 'var(--cat-9)',
+  'אחר': 'var(--cat-10)',
 };

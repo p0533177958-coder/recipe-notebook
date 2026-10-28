@@ -22,6 +22,7 @@ function imageIdsOf(r: Recipe, withSources: boolean): string[] {
 export async function exportBackup(): Promise<Blob> {
   const recipes = await db.recipes.toArray();
   const images = await collectImages(recipes.flatMap((r) => imageIdsOf(r, true)));
+  const shopping = await db.shopping.toArray();
   const file: BackupFile = {
     app: BACKUP_APP,
     version: 1,
@@ -29,6 +30,7 @@ export async function exportBackup(): Promise<Blob> {
     exportedAt: Date.now(),
     recipes,
     images,
+    shopping,
   };
   return new Blob([JSON.stringify(file)], { type: 'application/json' });
 }
@@ -49,6 +51,7 @@ export async function exportRecipeFile(r: Recipe): Promise<File> {
     exportedAt: Date.now(),
     recipes: [recipe],
     images: await collectImages(imageIdsOf(r, false)),
+    shopping: [],
   };
   return new File([JSON.stringify(file)], recipeFileName(r), { type: 'application/json' });
 }
@@ -68,7 +71,12 @@ export async function importFromText(text: string): Promise<ImportResult | null>
       .filter((img) => neededImages.has(img.id))
       .map(async (img) => ({ id: img.id, blob: await dataUrlToBlob(img.dataUrl), createdAt: Date.now() })),
   );
-  await db.transaction('rw', db.recipes, db.images, async () => {
+  // Shopping list lines merge by id (a re-imported backup adds nothing twice).
+  const shopping = data.shopping.filter((s) => s.recipeTitle && s.text);
+  await db.transaction('rw', db.recipes, db.images, db.shopping, async () => {
+    for (const item of shopping) {
+      if (!(await db.shopping.get(item.id))) await db.shopping.put(item);
+    }
     for (const img of images) {
       if (!(await db.images.get(img.id))) await db.images.put(img);
     }

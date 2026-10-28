@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IconClipboard } from '../components/Icons';
+import { IconClipboard, IconSparkle } from '../components/Icons';
 import { Button, PageHeader, toast } from '../components/ui';
 import { createDraft } from '../lib/recipeActions';
 import { S } from '../strings.he';
@@ -60,7 +60,7 @@ export default function AddText() {
           placeholder={S.paste.placeholder}
           aria-label={S.paste.title}
           autoFocus
-          className="min-h-[50dvh] flex-1 resize-none rounded-card border border-line bg-surface p-4 text-lg leading-relaxed shadow-soft outline-none placeholder:text-muted focus:border-primary"
+          className="ctl-input min-h-[50dvh] flex-1 resize-none rounded-card! p-4 text-lg shadow-soft"
         />
         {'clipboard' in navigator && 'readText' in navigator.clipboard && (
           <Button variant="secondary" onClick={() => void pasteFromClipboard()}>
@@ -68,7 +68,8 @@ export default function AddText() {
           </Button>
         )}
         <Button big onClick={() => void convert()} disabled={!text.trim()}>
-          ✨ {S.paste.convert}
+          <IconSparkle size={22} />
+          {S.paste.convert}
         </Button>
       </div>
     </div>

@@ -98,6 +98,17 @@ export type Draft = {
   errorDetail?: string;
 };
 
+/** A shopping list line, copied exactly from a recipe ingredient. */
+export type ShoppingItem = {
+  id: string;
+  recipeId?: string;
+  recipeTitle: string;
+  text: string;
+  checked: boolean;
+  createdAt: number;
+  order: number;
+};
+
 /** Raw content received through the Web Share Target, written by the service worker. */
 export type IncomingShare = {
   id: string;

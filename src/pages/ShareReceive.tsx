@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, toast } from '../components/ui';
+import { IconQuestion } from '../components/Icons';
+import { Button, IconBadge, Spinner, toast } from '../components/ui';
 import { db } from '../db';
 import { importFromText } from '../lib/backup';
 import { storeImages } from '../lib/image';
@@ -93,16 +94,18 @@ export default function ShareReceive() {
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
       {empty ? (
         <>
-          <p className="text-5xl" aria-hidden="true">
-            🤷
-          </p>
-          <p className="text-xl">{S.share.nothing}</p>
+          <IconBadge>
+            <IconQuestion size={44} />
+          </IconBadge>
+          <p className="text-lg">{S.share.nothing}</p>
           <Button onClick={() => navigate('/', { replace: true })}>{S.common.back}</Button>
         </>
       ) : (
         <>
-          <span className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-xl">{S.share.receiving}</p>
+          <span className="text-primary">
+            <Spinner size={44} />
+          </span>
+          <p className="text-lg">{S.share.receiving}</p>
         </>
       )}
     </div>

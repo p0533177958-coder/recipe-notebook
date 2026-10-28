@@ -51,7 +51,8 @@ export function startAlarm(): void {
   if (loop !== null) return;
   const ring = () => {
     playChime();
-    navigator.vibrate?.([400, 200, 400]);
+    // A clear, unmistakable pattern: long, short, long.
+    navigator.vibrate?.([600, 150, 200, 150, 600]);
   };
   ring();
   loop = window.setInterval(ring, 2200);

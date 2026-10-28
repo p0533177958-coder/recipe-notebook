@@ -3,7 +3,7 @@ import { newId } from '../db';
 import type { Recipe } from '../types';
 import { SYSTEM_PROMPT } from './aiPrompt';
 import type { AiEvent } from './aiProgress';
-import { geminiResponseSchema, parseAiResponse } from './aiRecipe';
+import { geminiResponseSchema, parseAiResponse, type AiDishBox } from './aiRecipe';
 import { blobToBase64 } from './image';
 
 export type AiErrorCode =
@@ -223,7 +223,7 @@ export async function extractRecipe(
   apiKey: string,
   input: AiInput,
   onEvent?: (e: AiEvent) => void,
-): Promise<Recipe> {
+): Promise<{ recipe: Recipe; dishBox?: AiDishBox }> {
   if (!apiKey.trim()) throw new AiError('no-key');
   const parts: unknown[] = [];
   const images = input.images ?? [];
@@ -251,7 +251,7 @@ export async function extractRecipe(
     if (out.blockReason) throw new AiError('blocked', out.blockReason);
     onEvent?.({ type: 'validate' });
     const result = parseAiResponse(out.text, newId, Date.now());
-    if (result.ok) return result.recipe;
+    if (result.ok) return { recipe: result.recipe, dishBox: result.dishBox };
     lastReason = result.reason;
     // A clear "not a recipe" / "unreadable" answer will not improve on retry.
     if (result.reason !== 'invalid') break;

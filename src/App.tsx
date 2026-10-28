@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { RingingOverlay } from './components/TimerUI';
-import { toast, Toaster } from './components/ui';
+import { ScreenSkeleton, toast, Toaster } from './components/ui';
 import { TimerProvider } from './hooks/timers';
 import { consumeJustUpdated, notifyRoute } from './lib/updates';
 import { S } from './strings.he';
@@ -17,6 +17,8 @@ const Processing = lazy(() => import('./pages/Processing'));
 const EditRecipe = lazy(() => import('./pages/EditRecipe'));
 const ShareReceive = lazy(() => import('./pages/ShareReceive'));
 const RecipePage = lazy(() => import('./pages/RecipePage'));
+const Shopping = lazy(() => import('./pages/Shopping'));
+const CookDone = lazy(() => import('./pages/CookDone'));
 
 /** Lets a waiting update apply on the next safe screen, and confirms right after an update. */
 function UpdateWatcher() {
@@ -32,12 +34,14 @@ export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <TimerProvider>
-        <Suspense fallback={<div className="min-h-dvh" />}>
+        <Suspense fallback={<ScreenSkeleton />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/recipe/:id" element={<RecipeIntro />} />
             <Route path="/cook/:id" element={<Cook />} />
             <Route path="/page/:id" element={<RecipePage />} />
+            <Route path="/done/:id" element={<CookDone />} />
+            <Route path="/shopping" element={<Shopping />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/add/text" element={<AddText />} />
             <Route path="/add/images/:draftId" element={<ImagesPreview />} />

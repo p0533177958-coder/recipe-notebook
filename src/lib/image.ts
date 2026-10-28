@@ -59,3 +59,49 @@ export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   const res = await fetch(dataUrl);
   return res.blob();
 }
+
+/** Where the finished dish appears in a source photo, in percent of the image (from the AI). */
+export type DishBox = { x: number; y: number; w: number; h: number };
+
+/**
+ * Converts a percentage box to pixel crop coordinates, clamped to the image.
+ * Returns null for boxes too small to make a useful dish photo (under 15% of either side).
+ */
+export function cropRect(box: DishBox, width: number, height: number): { sx: number; sy: number; sw: number; sh: number } | null {
+  const clamp = (v: number) => Math.min(100, Math.max(0, v));
+  const x1 = clamp(box.x);
+  const y1 = clamp(box.y);
+  const x2 = clamp(box.x + box.w);
+  const y2 = clamp(box.y + box.h);
+  if (x2 - x1 < 15 || y2 - y1 < 15) return null;
+  const sx = Math.round((x1 / 100) * width);
+  const sy = Math.round((y1 / 100) * height);
+  return { sx, sy, sw: Math.round((x2 / 100) * width) - sx, sh: Math.round((y2 / 100) * height) - sy };
+}
+
+/** Crops the dish out of a source photo and stores it as a new image. Returns its id, or null. */
+export async function cropDishPhoto(source: Blob, box: DishBox): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(source, { imageOrientation: 'from-image' });
+    const rect = cropRect(box, bitmap.width, bitmap.height);
+    if (!rect) {
+      bitmap.close();
+      return null;
+    }
+    const { width, height } = fitWithin(rect.sw, rect.sh, IMAGE_MAX_EDGE);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, width, height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', IMAGE_QUALITY));
+    if (!blob) return null;
+    const id = newId();
+    await db.images.put({ id, blob, createdAt: Date.now() });
+    return id;
+  } catch {
+    return null;
+  }
+}

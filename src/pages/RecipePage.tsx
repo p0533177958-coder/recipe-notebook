@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { IconClose, IconPrint } from '../components/Icons';
+import { IconClock, IconClose, IconPlate, IconPrint, IconTimer } from '../components/Icons';
 import { db } from '../db';
 import { useImageUrl } from '../hooks/useImageUrl';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -409,8 +409,16 @@ function RecipeCard({
               </div>
               {(recipe.totalTime || recipe.servings) && (
                 <div className="rp-meta">
-                  {recipe.totalTime && <span className="rp-chip">⏱ {recipe.totalTime}</span>}
-                  {recipe.servings && <span className="rp-chip">🍽 {recipe.servings}</span>}
+                  {recipe.totalTime && (
+                    <span className="rp-chip">
+                      <IconClock size={14} /> {recipe.totalTime}
+                    </span>
+                  )}
+                  {recipe.servings && (
+                    <span className="rp-chip">
+                      <IconPlate size={14} /> {recipe.servings}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -453,7 +461,7 @@ function RecipeCard({
                       {s.text}
                       {s.timers.map((t, j) => (
                         <span key={j} className="rp-timer">
-                          ⏱ {shortDuration(t.seconds)}
+                          <IconTimer size={12} /> {shortDuration(t.seconds)}
                         </span>
                       ))}
                     </span>
@@ -470,7 +478,8 @@ function RecipeCard({
           </p>
         )}
         <footer className="rp-footer">
-          ✦ {total > 1 ? S.page.pageN(index + 1, total) : S.page.from} ✦
+          <span className="rp-diamond" aria-hidden="true" /> {total > 1 ? S.page.pageN(index + 1, total) : S.page.from}{' '}
+          <span className="rp-diamond" aria-hidden="true" />
         </footer>
       </article>
     </div>

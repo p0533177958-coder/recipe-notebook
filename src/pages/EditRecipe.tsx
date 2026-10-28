@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { IconClose, IconDrag, IconImage, IconPlus, IconSource, IconTimer, IconTrash } from '../components/Icons';
+import { IconCheck, IconChevronDown, IconClose, IconDrag, IconImage, IconPlus, IconQuestion, IconSource, IconTimer, IconTrash } from '../components/Icons';
 import { RecipeVisual } from '../components/RecipeVisual';
 import { SortableArea, useSortableItem } from '../components/Sortable';
 import { SourceSheet } from '../components/SourceSheet';
-import { Button, ConfirmSheet, IconButton, PageHeader, toast } from '../components/ui';
+import { Button, ConfirmSheet, IconButton, PageHeader, ScreenSkeleton, Sheet, SheetItem, toast } from '../components/ui';
 import { db, newId } from '../db';
 import { forgetImageUrl } from '../hooks/useImageUrl';
 import { storeImages } from '../lib/image';
@@ -15,10 +15,10 @@ import { S } from '../strings.he';
 import { CATEGORIES, type Category, type Draft, type Ingredient, type PrepHint, type Recipe, type Step } from '../types';
 
 const input =
-  'min-h-12 w-full rounded-xl border border-line bg-bg px-3 text-base outline-none focus:border-primary placeholder:text-muted';
+  'ctl-input text-base';
 
 /** Marks an ingredient or step the AI asked about. */
-const QUESTION_RING = 'ring-2 ring-amber-400 ring-offset-2 ring-offset-surface';
+const QUESTION_RING = 'ring-2 ring-primary/50 ring-offset-2 ring-offset-surface';
 
 function Field({ label, children, htmlFor }: { label: string; children: ReactNode; htmlFor?: string }) {
   return (
@@ -33,9 +33,9 @@ function Field({ label, children, htmlFor }: { label: string; children: ReactNod
 
 function Card({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="rounded-card border border-line bg-surface p-4 shadow-soft">
+    <section className="rounded-card bg-surface p-4 shadow-soft">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="flex-1 text-lg font-bold text-primary">{title}</h2>
+        <h2 className="flex-1 text-lg font-bold">{title}</h2>
         {action}
       </div>
       {children}
@@ -61,7 +61,7 @@ function cleanRecipe(r: Recipe): Recipe {
   return {
     ...r,
     title: r.title.trim(),
-    emoji: r.emoji.trim() || '🍽️',
+    emoji: r.emoji.trim() || '🍽️', // emoji-ok: recipe illustration (data)
     tags: r.tags.map((t) => t.trim()).filter(Boolean),
     servings: r.servings?.trim() || undefined,
     totalTime: r.totalTime?.trim() || undefined,
@@ -76,7 +76,7 @@ function cleanRecipe(r: Recipe): Recipe {
 export default function EditRecipe() {
   const { draftId = '' } = useParams();
   const draft = useLiveQuery(() => db.drafts.get(draftId), [draftId], null);
-  if (draft === null) return <div className="min-h-dvh" />;
+  if (draft === null) return <ScreenSkeleton />;
   if (!draft) return <Navigate to="/" replace />;
   if (!draft.recipe) return <Navigate to={`/process/${draftId}`} replace />;
   return <Editor draft={draft as Draft & { recipe: Recipe }} />;
@@ -258,18 +258,7 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
               </p>
             )}
             <Field label={S.edit.category} htmlFor="cat">
-              <select
-                id="cat"
-                value={r.category}
-                onChange={(e) => patch({ category: e.target.value as Category })}
-                className={input}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              <CategoryPicker value={r.category} onChange={(category) => patch({ category })} />
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label={S.edit.servings} htmlFor="serv">
@@ -307,7 +296,7 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
                   onBlur={addTag}
                   placeholder={`+ ${S.edit.addTag}`}
                   enterKeyHint="done"
-                  className="min-h-10 w-32 rounded-full border border-dashed border-line bg-transparent px-3 outline-none focus:border-primary"
+                  className="min-h-12 w-36 rounded-full border border-dashed border-line bg-transparent px-4 text-sm outline-none focus:border-primary"
                 />
               </div>
             </Field>
@@ -397,7 +386,8 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
 
       <div className="fixed inset-x-0 bottom-0 z-20 bg-bg/95 px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur">
         <Button big className="mx-auto w-full max-w-2xl" onClick={() => void save()}>
-          ✓ {S.edit.save}
+          <IconCheck size={20} />
+          {S.edit.save}
         </Button>
       </div>
 
@@ -437,7 +427,7 @@ function DragHandle({ props }: { props: ReturnType<typeof useSortableItem>['hand
       type="button"
       {...props}
       aria-label={S.common.dragToReorder}
-      className="flex size-11 shrink-0 touch-none items-center justify-center rounded-lg text-muted active:bg-surface-2"
+      className="flex size-12 shrink-0 touch-none items-center justify-center rounded-xl text-muted active:bg-surface-2"
     >
       <IconDrag size={20} />
     </button>
@@ -473,7 +463,7 @@ function IngredientRow({
             onChange={(e) => onChange({ group: e.target.value || undefined })}
             placeholder={S.edit.groupPlaceholder}
             aria-label={S.edit.group}
-            className="min-h-9 w-full rounded-lg bg-transparent px-3 text-sm text-muted outline-none focus:bg-bg"
+            className="min-h-10 w-full rounded-xl bg-transparent px-3 text-sm text-muted outline-none focus:bg-surface-2"
           />
         )}
       </div>
@@ -546,7 +536,7 @@ function StepEditor({
                     aria-pressed={on}
                     onClick={() => toggleIng(i.id)}
                     className={`min-h-10 max-w-full truncate rounded-full border px-3 text-sm transition ${
-                      on ? 'border-secondary bg-secondary text-white' : 'border-line bg-surface text-muted'
+                      on ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-muted'
                     }`}
                   >
                     {i.text}
@@ -565,7 +555,7 @@ function StepEditor({
               onChange={(e) => setTimer(i, { label: e.target.value })}
               aria-label={S.edit.timerLabel}
               placeholder={S.edit.timerLabel}
-              className="min-h-11 min-w-24 flex-1 rounded-lg border border-line bg-surface px-2"
+              className="ctl-input min-w-24 flex-1"
             />
             <label className="flex items-center gap-1 text-sm">
               <input
@@ -574,7 +564,7 @@ function StepEditor({
                 min={0}
                 value={Math.floor(t.seconds / 60)}
                 onChange={(e) => setTimer(i, { seconds: Math.max(0, Number(e.target.value) || 0) * 60 + (t.seconds % 60) })}
-                className="min-h-11 w-16 rounded-lg border border-line bg-surface px-2 text-center"
+                className="ctl-input w-16! px-2! text-center"
               />
               {S.edit.timerMinutes}
             </label>
@@ -588,7 +578,7 @@ function StepEditor({
                 onChange={(e) =>
                   setTimer(i, { seconds: Math.floor(t.seconds / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)) })
                 }
-                className="min-h-11 w-14 rounded-lg border border-line bg-surface px-2 text-center"
+                className="ctl-input w-16! px-2! text-center"
               />
               {S.edit.timerSeconds}
             </label>
@@ -659,11 +649,12 @@ function QuestionsCard({
   const questions = recipe.questions ?? [];
   return (
     <section
-      className="anim-fade-up rounded-card border-2 border-amber-400/70 bg-amber-50 p-4 shadow-soft dark:bg-amber-950/30"
+      className="anim-fade-up rounded-card bg-surface-2 p-4"
       aria-labelledby="q-h"
     >
-      <h2 id="q-h" className="text-lg font-bold text-amber-800 dark:text-amber-300">
-        ❓ {S.questions.title(questions.length)}
+      <h2 id="q-h" className="flex items-center gap-2 text-lg font-bold">
+        <IconQuestion size={22} className="text-primary" />
+        {S.questions.title(questions.length)}
       </h2>
       <p className="mb-3 text-sm text-muted">{S.questions.hint}</p>
       <ul className="flex flex-col gap-3">
@@ -704,5 +695,39 @@ function QuestionsCard({
         })}
       </ul>
     </section>
+  );
+}
+
+/** Category choice: our own button and sheet instead of the browser's <select>. */
+function CategoryPicker({ value, onChange }: { value: Category; onChange: (c: Category) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        id="cat"
+        type="button"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+        className="ctl-input flex items-center justify-between text-start transition duration-150 active:scale-[0.99]"
+      >
+        <span>{value}</span>
+        <IconChevronDown size={18} className="text-muted" />
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={S.edit.category}>
+        <div className="flex flex-col gap-1">
+          {CATEGORIES.map((c) => (
+            <SheetItem
+              key={c}
+              label={c}
+              selected={c === value}
+              onClick={() => {
+                onChange(c);
+                setOpen(false);
+              }}
+            />
+          ))}
+        </div>
+      </Sheet>
+    </>
   );
 }

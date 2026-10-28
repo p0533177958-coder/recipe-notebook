@@ -70,8 +70,13 @@ export function applyTheme(): void {
   const root = document.documentElement;
   if (current.theme === 'auto') delete root.dataset.theme;
   else root.dataset.theme = current.theme;
-  const dark =
-    current.theme === 'dark' ||
-    (current.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1F1A17' : '#C8553D');
+  // The status bar always matches the background. In "auto" each meta keeps its own media query;
+  // a manual choice overrides both, since the system preference no longer decides.
+  const LIGHT_BG = '#FBF6EE';
+  const DARK_BG = '#1F1A17';
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    const isDarkMeta = meta.media.includes('dark');
+    const color = current.theme === 'auto' ? (isDarkMeta ? DARK_BG : LIGHT_BG) : current.theme === 'dark' ? DARK_BG : LIGHT_BG;
+    meta.setAttribute('content', color);
+  }
 }

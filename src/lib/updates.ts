@@ -23,7 +23,7 @@ export function setUpdateBlocked(reason: string, blocked: boolean): void {
 
 /** Screens where reloading could interrupt something: AI processing, editing, adding, cooking, receiving a share. */
 export function isBusyPath(path: string): boolean {
-  return /\/(process|edit|add|cook|share)(\/|$)/.test(path);
+  return /\/(process|edit|add|cook|done|share)(\/|$)/.test(path);
 }
 
 function maybeApply() {

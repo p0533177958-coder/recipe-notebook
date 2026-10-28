@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { IconArrowLeft, IconArrowRight, IconClose, IconList, IconMic } from '../components/Icons';
+import { IconArrowLeft, IconArrowRight, IconCheck, IconClose, IconList, IconMic, IconMore, IconSteps, IconSun } from '../components/Icons';
 import { IngredientList } from '../components/IngredientList';
 import { PrepReminders } from '../components/PrepAhead';
 import { StepTimerButton, TimerBar } from '../components/TimerUI';
-import { Button, IconButton, Sheet, toast } from '../components/ui';
+import { Button, EmptyState, IconButton, Sheet, SheetItem, Skeleton, toast } from '../components/ui';
 import { MAX_COOK_FONT, MIN_COOK_FONT } from '../config';
 import { db } from '../db';
 import { useTimers } from '../hooks/timers';
@@ -21,11 +21,27 @@ import { S } from '../strings.he';
 import type { Recipe } from '../types';
 import { useHaveIt } from './RecipeIntro';
 
+/** Above this many steps the progress dots become a thin continuous bar. */
+const DOTS_MAX = 10;
+
 export default function Cook() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const recipe = useLiveQuery(() => db.recipes.get(id), [id], null);
-  if (recipe === null) return <div className="min-h-dvh" />;
-  if (!recipe || recipe.steps.length === 0) return <p className="p-8 text-center text-lg">{S.errors.notFound}</p>;
+  if (recipe === null) return <CookSkeleton />;
+  if (!recipe || recipe.steps.length === 0) {
+    return (
+      <EmptyState
+        title={S.errors.notFound}
+        text=""
+        action={
+          <Button variant="secondary" className="w-full" onClick={() => navigate('/')}>
+            {S.common.back}
+          </Button>
+        }
+      />
+    );
+  }
   return <CookView recipe={recipe} />;
 }
 
@@ -38,7 +54,7 @@ function CookView({ recipe }: { recipe: Recipe }) {
   const total = recipe.steps.length;
   const stepIndex = Math.min(Math.max(0, Number(params.get('step') ?? '1') - 1 || 0), total - 1);
   const [dir, setDir] = useState<'next' | 'prev'>('next');
-  const [showAll, setShowAll] = useState(false);
+  const [sheet, setSheet] = useState<null | 'menu' | 'ingredients' | 'steps'>(null);
   const wake = useWakeLock(true);
 
   const step = recipe.steps[stepIndex];
@@ -48,8 +64,21 @@ function CookView({ recipe }: { recipe: Recipe }) {
   const recipeRef = { id: recipe.id, title: recipe.title };
   const prepPlan = useMemo(() => planPrep(recipe), [recipe]);
 
+  // Tell once per session that the screen stays on, instead of a permanent line in every step.
+  useEffect(() => {
+    if (!wake) return;
+    try {
+      if (sessionStorage.getItem('rn-wake-told')) return;
+      sessionStorage.setItem('rn-wake-told', '1');
+    } catch {
+      return;
+    }
+    toast(S.cook.wakeLockOn);
+  }, [wake]);
+
   const goTo = (i: number) => {
     if (i < 0 || i >= total || i === stepIndex) return;
+    navigator.vibrate?.(10);
     setDir(i > stepIndex ? 'next' : 'prev');
     setParams({ step: String(i + 1) }, { replace: true });
     window.scrollTo({ top: 0 });
@@ -62,13 +91,11 @@ function CookView({ recipe }: { recipe: Recipe }) {
     } catch {
       // ignore
     }
-    toast(S.cook.finishedBravo);
-    navigate('/', { replace: true });
+    navigate(`/done/${recipe.id}`, { replace: true, viewTransition: true });
   };
 
   /** Running (or paused) timer started from this step for a given label. */
-  const runningFor = (label: string) =>
-    timers.timers.find((t) => t.recipeId === recipe.id && t.label === label && t.state !== 'ringing')?.id;
+  const runningFor = (label: string) => timers.timers.find((t) => t.recipeId === recipe.id && t.label === label && t.state !== 'ringing')?.id;
 
   const stepSpeech = (i: number) => `${S.voice.stepPrefix(i + 1)} ${recipe.steps[i].text}`;
 
@@ -92,11 +119,7 @@ function CookView({ recipe }: { recipe: Recipe }) {
         speak(stepSpeech(stepIndex));
         break;
       case 'ingredients':
-        speak(
-          stepIngredients.length
-            ? stepIngredients.map((i) => i.text).join('. ')
-            : S.voice.noStepIngredients,
-        );
+        speak(stepIngredients.length ? stepIngredients.map((i) => i.text).join('. ') : S.voice.noStepIngredients);
         break;
       case 'startTimer': {
         const t = step.timers.find((x) => !runningFor(x.label));
@@ -158,23 +181,18 @@ function CookView({ recipe }: { recipe: Recipe }) {
 
   return (
     <div className="mx-auto flex h-dvh max-w-2xl flex-col">
-      <header className="shrink-0 px-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+      <header className="shrink-0 ps-[max(8px,env(safe-area-inset-right))] pe-[max(8px,env(safe-area-inset-left))] pt-[calc(8px+env(safe-area-inset-top))]">
         <div className="flex items-center gap-1">
           <IconButton label={S.cook.exit} onClick={() => navigate(`/recipe/${recipe.id}`, { replace: true })}>
             <IconClose />
           </IconButton>
           <div className="min-w-0 flex-1 text-center">
             <p className="truncate text-sm text-muted">{recipe.title}</p>
-            <p className="font-bold" aria-live="polite">
+            <p className="flex items-center justify-center gap-1 text-base font-bold tabular-nums" aria-live="polite">
               {S.cook.stepOf(stepIndex + 1, total)}
+              {wake && <IconSun size={14} className="text-muted" aria-label={S.cook.wakeLockIcon} />}
             </p>
           </div>
-          <IconButton label={S.cook.fontSmaller} onClick={() => setFont(font - 2)} disabled={font <= MIN_COOK_FONT}>
-            <span className="text-sm font-bold">א-</span>
-          </IconButton>
-          <IconButton label={S.cook.fontBigger} onClick={() => setFont(font + 2)} disabled={font >= MAX_COOK_FONT}>
-            <span className="text-lg font-bold">א+</span>
-          </IconButton>
           {voice.supported && (
             <IconButton
               label={voice.listening ? S.cook.micOff : S.cook.micOn}
@@ -185,38 +203,56 @@ function CookView({ recipe }: { recipe: Recipe }) {
               <IconMic />
             </IconButton>
           )}
+          <IconButton label={S.cook.menu} aria-haspopup="dialog" onClick={() => setSheet('menu')}>
+            <IconMore />
+          </IconButton>
         </div>
-        <div className="flex flex-wrap justify-center gap-0.5 py-1" role="tablist" aria-label="שלבים">
-          {recipe.steps.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={i === stepIndex}
-              aria-label={S.cook.goToStep(i + 1)}
-              onClick={() => goTo(i)}
-              className="flex size-8 items-center justify-center"
-            >
+
+        {total <= DOTS_MAX ? (
+          <div className="flex justify-center gap-0.5 py-1" role="tablist" aria-label={S.cook.allSteps}>
+            {recipe.steps.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={i === stepIndex}
+                aria-label={S.cook.goToStep(i + 1)}
+                onClick={() => goTo(i)}
+                className="flex h-8 w-7 items-center justify-center"
+              >
+                <span
+                  className={`block rounded-full transition-all duration-[250ms] ${
+                    i === stepIndex ? 'h-2.5 w-6 bg-primary' : i < stepIndex ? 'size-2.5 bg-ink/40' : 'size-2.5 bg-line'
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSheet('steps')}
+            aria-label={S.cook.allSteps}
+            className="flex h-8 w-full items-center px-4"
+          >
+            <span className="h-1 w-full overflow-hidden rounded-full bg-line">
               <span
-                className={`block rounded-full transition-all ${
-                  i === stepIndex ? 'h-3 w-6 bg-primary' : i < stepIndex ? 'size-3 bg-primary/50' : 'size-3 bg-line'
-                }`}
+                className="block h-full rounded-full bg-primary transition-[width] duration-[250ms]"
+                style={{ width: `${((stepIndex + 1) / total) * 100}%` }}
               />
-            </button>
-          ))}
-        </div>
+            </span>
+          </button>
+        )}
+
         {voice.listening && (
-          <p className="anim-fade-in rounded-xl bg-primary/10 px-3 py-1.5 text-center text-sm text-primary">
-            🎙 {S.cook.listening} {S.cook.voiceHelp}
+          <p className="anim-fade-in mx-2 flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-sm">
+            <IconMic size={16} className="shrink-0 text-primary" />
+            {S.cook.listening} {S.cook.voiceHelp}
           </p>
         )}
       </header>
 
-      <main
-        className="flex-1 overflow-y-auto px-5 pt-4 pb-4"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-4" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div key={step.id} className={dir === 'next' ? 'anim-next' : 'anim-prev'}>
           <PrepReminders plan={prepPlan} stepIndex={stepIndex} recipe={recipeRef} runningFor={runningFor} />
           <p className="font-medium" style={{ fontSize: `${font}px`, lineHeight: 1.4 }}>
@@ -225,11 +261,11 @@ function CookView({ recipe }: { recipe: Recipe }) {
 
           {stepIngredients.length > 0 && (
             <section className="mt-6 rounded-card bg-surface-2 p-4" aria-label={S.cook.stepIngredients}>
-              <h2 className="mb-1 text-base font-bold text-muted">{S.cook.stepIngredients}</h2>
-              <ul className="flex flex-col gap-1" style={{ fontSize: `${Math.max(20, font - 8)}px` }}>
+              <h2 className="mb-1 text-sm font-bold text-muted">{S.cook.stepIngredients}</h2>
+              <ul className="flex flex-col gap-1" style={{ fontSize: `${Math.max(18, font - 8)}px` }}>
                 {stepIngredients.map((ing) => (
                   <li key={ing.id} className="flex gap-2">
-                    <span className="text-primary" aria-hidden="true">
+                    <span className="text-muted" aria-hidden="true">
                       •
                     </span>
                     {ing.text}
@@ -246,33 +282,17 @@ function CookView({ recipe }: { recipe: Recipe }) {
               ))}
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => setShowAll(true)}
-            className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full border border-line px-4 text-muted active:bg-surface-2"
-          >
-            <IconList size={20} />
-            {S.cook.allIngredients}
-          </button>
-          {wake && <p className="mt-3 text-xs text-muted">☀️ {S.cook.wakeLockOn}</p>}
         </div>
       </main>
 
       <footer className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         <div className="flex gap-3 px-4 py-3">
-          <Button
-            big
-            variant="secondary"
-            className="flex-1"
-            disabled={stepIndex === 0}
-            onClick={() => goTo(stepIndex - 1)}
-          >
+          <Button big variant="secondary" className="flex-1" disabled={stepIndex === 0} onClick={() => goTo(stepIndex - 1)}>
             <IconArrowRight /> {S.cook.prev}
           </Button>
           {isLast ? (
             <Button big variant="olive" className="flex-[1.4]" onClick={() => void finish()}>
-              {S.cook.done}
+              <IconCheck /> {S.cook.done}
             </Button>
           ) : (
             <Button big className="flex-[1.4]" onClick={() => goTo(stepIndex + 1)}>
@@ -283,9 +303,73 @@ function CookView({ recipe }: { recipe: Recipe }) {
         <TimerBar />
       </footer>
 
-      <Sheet open={showAll} onClose={() => setShowAll(false)} title={S.intro.ingredients}>
+      <Sheet open={sheet === 'menu'} onClose={() => setSheet(null)} title={S.cook.menu}>
+        <div className="flex min-h-14 items-center gap-3 px-3">
+          <span className="flex-1 text-base font-medium">{S.cook.textSize}</span>
+          <IconButton label={S.cook.fontSmaller} onClick={() => setFont(font - 2)} disabled={font <= MIN_COOK_FONT} className="border border-line">
+            <span className="text-sm font-bold">א-</span>
+          </IconButton>
+          <span className="w-10 text-center text-base tabular-nums">{font}</span>
+          <IconButton label={S.cook.fontBigger} onClick={() => setFont(font + 2)} disabled={font >= MAX_COOK_FONT} className="border border-line">
+            <span className="text-lg font-bold">א+</span>
+          </IconButton>
+        </div>
+        <SheetItem icon={<IconList />} label={S.cook.allIngredients} onClick={() => setSheet('ingredients')} />
+        <SheetItem icon={<IconSteps />} label={S.cook.allSteps} onClick={() => setSheet('steps')} />
+      </Sheet>
+
+      <Sheet open={sheet === 'ingredients'} onClose={() => setSheet(null)} title={S.intro.ingredients}>
         <IngredientList ingredients={recipe.ingredients} checked={checked} onToggle={toggle} checkLabel={S.intro.haveIt} />
       </Sheet>
+
+      <Sheet open={sheet === 'steps'} onClose={() => setSheet(null)} title={S.cook.allSteps}>
+        <ol className="flex flex-col gap-1">
+          {recipe.steps.map((s, i) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  goTo(i);
+                  setSheet(null);
+                }}
+                aria-current={i === stepIndex ? 'step' : undefined}
+                className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2 text-start transition duration-150 active:bg-surface-2 ${
+                  i === stepIndex ? 'bg-surface-2' : ''
+                }`}
+              >
+                <span
+                  className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums ${
+                    i === stepIndex ? 'bg-primary text-on-primary' : 'bg-surface-2 text-muted'
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <span className="line-clamp-1 text-base">{s.text}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </Sheet>
+    </div>
+  );
+}
+
+function CookSkeleton() {
+  return (
+    <div className="mx-auto flex h-dvh max-w-2xl flex-col px-4 pt-[calc(8px+env(safe-area-inset-top))]" aria-busy="true">
+      <div className="flex items-center justify-between">
+        <Skeleton className="size-12 rounded-full" />
+        <Skeleton className="h-10 w-40 rounded-xl" />
+        <Skeleton className="size-12 rounded-full" />
+      </div>
+      <Skeleton className="mt-8 h-9 w-full rounded-xl" />
+      <Skeleton className="mt-3 h-9 w-5/6 rounded-xl" />
+      <Skeleton className="mt-3 h-9 w-2/3 rounded-xl" />
+      <div className="flex-1" />
+      <div className="flex gap-3 pb-4">
+        <Skeleton className="h-14 flex-1 rounded-2xl" />
+        <Skeleton className="h-14 flex-[1.4] rounded-2xl" />
+      </div>
     </div>
   );
 }

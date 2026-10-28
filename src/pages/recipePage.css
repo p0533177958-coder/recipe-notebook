@@ -262,11 +262,24 @@
   padding: 0.08em 0;
 }
 .rp-ing::before {
-  content: '❦';
-  color: var(--rp-line);
-  font-size: 0.75em;
-  line-height: 1.85;
+  /* A small ornamental diamond (a CSS shape, not a character). */
+  content: '';
+  flex-shrink: 0;
+  width: 0.38em;
+  height: 0.38em;
+  margin-top: 0.55em;
+  background: var(--rp-line);
+  transform: rotate(45deg);
   opacity: 0.8;
+}
+.rp-diamond {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  background: currentColor;
+  transform: rotate(45deg);
+  vertical-align: 0.1em;
+  opacity: 0.6;
 }
 
 .rp-step {

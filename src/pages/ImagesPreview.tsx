@@ -1,9 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { IconClose, IconPlus } from '../components/Icons';
+import { IconClose, IconPlus, IconSparkle } from '../components/Icons';
 import { SortableArea, useSortableItem } from '../components/Sortable';
-import { Button, PageHeader, toast } from '../components/ui';
+import { Button, PageHeader, ScreenSkeleton, toast } from '../components/ui';
 import { db } from '../db';
 import { forgetImageUrl, useImageUrl } from '../hooks/useImageUrl';
 import { storeImages } from '../lib/image';
@@ -45,7 +45,7 @@ export default function ImagesPreview() {
   const [busy, setBusy] = useState(false);
   const [showText, setShowText] = useState(false);
 
-  if (draft === null) return <div className="min-h-dvh" />;
+  if (draft === null) return <ScreenSkeleton />;
   if (!draft) return <Navigate to="/" replace />;
 
   const ids = draft.sourceImageIds;
@@ -117,7 +117,7 @@ export default function ImagesPreview() {
               onChange={(e) => void db.drafts.update(draftId, { text: e.target.value, updatedAt: Date.now() })}
               aria-label={S.images.addText}
               placeholder={S.images.addText}
-              className="min-h-28 w-full rounded-card border border-line bg-surface p-3 text-base outline-none focus:border-primary"
+              className="ctl-input min-h-28 rounded-card! p-3 text-base"
             />
           ) : (
             <button type="button" className="min-h-11 text-primary underline underline-offset-4" onClick={() => setShowText(true)}>
@@ -129,7 +129,8 @@ export default function ImagesPreview() {
       <div className="sticky bottom-0 bg-bg/95 px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur">
         {ids.length === 0 && <p className="mb-2 text-center text-muted">{S.images.none}</p>}
         <Button big className="w-full" disabled={ids.length === 0 || busy} onClick={() => void process()}>
-          ✨ {S.images.process(ids.length)}
+          <IconSparkle size={22} />
+          {S.images.process(ids.length)}
         </Button>
       </div>
     </div>

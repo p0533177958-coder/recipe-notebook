@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IconCheck, IconDownload, IconUpload } from '../components/Icons';
-import { Button, PageHeader, toast } from '../components/ui';
+import { IconBell, IconCheck, IconDownload, IconInfo, IconUpload } from '../components/Icons';
+import { Button, PageHeader, Toggle, toast } from '../components/ui';
 import { AI_STUDIO_URL, MAX_COOK_FONT, MIN_COOK_FONT } from '../config';
 import { backupFileName, downloadBlob, exportBackup, importFromText } from '../lib/backup';
 import { FONT_STYLES, loadAllFontStyles, type FontStyleId } from '../lib/fonts';
@@ -15,8 +15,8 @@ import { S } from '../strings.he';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mb-5 rounded-card border border-line bg-surface p-4 shadow-soft">
-      <h2 className="mb-3 text-lg font-bold text-primary">{title}</h2>
+    <section className="mb-4 rounded-card bg-surface p-4 shadow-soft">
+      <h2 className="mb-3 text-lg font-bold">{title}</h2>
       <div className="flex flex-col gap-4">{children}</div>
     </section>
   );
@@ -44,7 +44,7 @@ function Segmented<T extends string>({
             role="radio"
             aria-checked={value === o.value}
             onClick={() => onChange(o.value)}
-            className={`min-h-11 flex-1 rounded-xl px-2 transition ${
+            className={`min-h-12 flex-1 rounded-xl px-2 text-sm transition duration-150 ${
               value === o.value ? 'bg-surface font-bold text-primary shadow-soft' : 'text-muted'
             }`}
           >
@@ -53,19 +53,6 @@ function Segmented<T extends string>({
         ))}
       </div>
     </div>
-  );
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3">
-      <span className="font-medium">{label}</span>
-      <input type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span
-        aria-hidden="true"
-        className="relative h-8 w-14 shrink-0 rounded-full bg-line transition peer-checked:bg-secondary peer-focus-visible:ring-2 peer-focus-visible:ring-primary after:absolute after:top-1 after:right-1 after:size-6 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:-translate-x-6"
-      />
-    </label>
   );
 }
 
@@ -126,7 +113,7 @@ function FontPicker({ value, onChange }: { value: FontStyleId; onChange: (v: Fon
                 {on && <IconCheck size={16} className="text-primary" />}
               </span>
               <span
-                className="text-xl leading-tight text-ink"
+                className="text-xl text-ink"
                 style={{ fontFamily: `${f.title}, 'Rubik', serif`, fontWeight: f.titleWeight }}
               >
                 {S.settings.fontSampleTitle}
@@ -210,7 +197,7 @@ export default function Settings() {
                 value={key}
                 onChange={(e) => saveKey(e.target.value)}
                 placeholder={S.settings.apiKeyPlaceholder}
-                className="min-h-12 min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 font-mono text-sm outline-none focus:border-primary"
+                className="ctl-input min-w-0 flex-1 font-mono text-sm"
               />
               <Button variant="secondary" className="px-3!" onClick={() => setShowKey((v) => !v)}>
                 {showKey ? S.settings.hideKey : S.settings.showKey}
@@ -227,7 +214,7 @@ export default function Settings() {
             </a>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="olive" onClick={() => void onCheck()} disabled={!key.trim() || checking}>
+            <Button variant="secondary" onClick={() => void onCheck()} disabled={!key.trim() || checking}>
               {checking ? S.settings.checking : S.settings.checkKey}
             </Button>
             {keyStatus && (
@@ -241,7 +228,10 @@ export default function Settings() {
               {keyStatus.detail}
             </p>
           )}
-          <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">ℹ️ {S.settings.privacyNote}</p>
+          <p className="flex gap-2 rounded-xl bg-surface-2 p-3 text-sm text-muted">
+            <IconInfo size={18} className="mt-0.5 shrink-0" />
+            {S.settings.privacyNote}
+          </p>
         </Section>
 
         <Section title={S.settings.displaySection}>
@@ -277,7 +267,7 @@ export default function Settings() {
               step={2}
               value={s.cookFontSize}
               onChange={(e) => updateSettings({ cookFontSize: Number(e.target.value) })}
-              className="h-12 w-full accent-[var(--c-primary)]"
+              className="ctl-range"
             />
             <p className="rounded-xl bg-surface-2 p-3 font-medium" style={{ fontSize: s.cookFontSize }}>
               {S.settings.cookFontPreview}
@@ -317,7 +307,8 @@ export default function Settings() {
               navigator.vibrate?.([300, 150, 300]);
             }}
           >
-            🔔 {S.settings.testSound}
+            <IconBell size={20} />
+            {S.settings.testSound}
           </Button>
         </Section>
 
@@ -357,7 +348,7 @@ export default function Settings() {
         </Section>
 
         <p className="px-2 text-center text-sm text-muted">
-          🔒 {S.settings.about}
+          {S.settings.about}
         </p>
         <UpdateCheck />
       </div>

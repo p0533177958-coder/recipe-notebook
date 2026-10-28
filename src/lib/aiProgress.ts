@@ -20,10 +20,12 @@ export type AiProgress = {
   /** True while waiting for the model's first words (the only phase without real signal). */
   waiting: boolean;
   emoji?: string;
+  /** What has been read so far, to fill the skeleton recipe card. */
+  preview: { title?: string; ingredients: string[]; steps: string[] };
   log: LogItem[];
 };
 
-export const initialProgress: AiProgress = { percent: 0, waiting: false, log: [] };
+export const initialProgress: AiProgress = { percent: 0, waiting: false, preview: { ingredients: [], steps: [] }, log: [] };
 
 /** What can be read so far from a partial (still streaming) recipe JSON. */
 export type PartialInfo = {
@@ -33,8 +35,10 @@ export type PartialInfo = {
   section: 'start' | 'ingredients' | 'steps' | 'after';
   ingredients: number;
   lastIngredient?: string;
+  ingredientTexts: string[];
   steps: number;
   lastStep?: string;
+  stepTexts: string[];
   timers: number;
   prep: number;
   questions: number;
@@ -82,8 +86,10 @@ export function analyzePartial(text: string): PartialInfo {
     section: afterSlice ? 'after' : sIdx >= 0 ? 'steps' : iIdx >= 0 ? 'ingredients' : 'start',
     ingredients: ingTexts.length,
     lastIngredient: ingTexts.at(-1),
+    ingredientTexts: ingTexts,
     steps: stepTexts.length,
     lastStep: stepTexts.at(-1),
+    stepTexts,
     timers: count(stepSlice, /"seconds"\s*:/g),
     // Questions also carry stepNumber, so count prep hints only before the questions list.
     prep: count(afterSlice.split('"questions"')[0], /"stepNumber"\s*:/g),
@@ -118,28 +124,29 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
   let percent = state.percent;
   let waiting = state.waiting;
   let emoji = state.emoji;
+  let preview = state.preview;
 
   switch (e.type) {
     case 'images': {
-      const text = e.done < e.total ? `מכין תמונה ${e.done + 1} מתוך ${e.total}…` : e.total === 1 ? 'הכנתי את התמונה' : `הכנתי ${e.total} תמונות`;
+      const text = e.done < e.total ? `מכינים תמונה ${e.done + 1} מתוך ${e.total}…` : e.total === 1 ? 'התמונה מוכנה' : `${e.total} תמונות מוכנות`;
       log = upsert(log, { key: 'images', text, state: e.done < e.total ? 'active' : 'done' });
       percent = Math.max(percent, Math.round((e.done / Math.max(1, e.total)) * 10));
       break;
     }
     case 'request':
-      log = upsert(log, { key: 'send', text: 'שולח את המתכון לעיבוד…', state: 'active' });
+      log = upsert(log, { key: 'send', text: 'שולחים את המתכון לעיבוד…', state: 'active' });
       percent = Math.max(percent, 12);
       waiting = true;
       break;
     case 'model-unavailable':
       log = upsert(log, {
         key: `fallback-${e.model}`,
-        text: e.quota ? 'נגמרה המכסה במודל הראשי, עובר לחלופי' : 'המודל הראשי לא זמין, עובר לחלופי',
+        text: e.quota ? 'נגמרה המכסה במודל הראשי, עוברים לחלופי' : 'המודל הראשי לא זמין, עוברים לחלופי',
         state: 'warn',
       });
       break;
     case 'server-retry':
-      log = upsert(log, { key: `retry-${log.length}`, text: 'השרת עמוס, מנסה שוב…', state: 'warn' });
+      log = upsert(log, { key: `retry-${log.length}`, text: 'השרת עמוס, מנסים שוב…', state: 'warn' });
       break;
     case 'partial': {
       const p = analyzePartial(e.text);
@@ -150,14 +157,15 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
         break;
       }
       if (p.emoji) emoji = p.emoji;
-      if (p.title) log = upsert(log, { key: 'title', text: `מצאתי את המתכון: "${short(p.title, 36)}"`, state: 'done' });
+      preview = { title: p.title ?? preview.title, ingredients: p.ingredientTexts, steps: p.stepTexts };
+      if (p.title) log = upsert(log, { key: 'title', text: `מצאנו את המתכון: "${short(p.title, 36)}"`, state: 'done' });
       if (p.section === 'ingredients' || p.ingredients > 0) {
         const busy = p.section === 'ingredients';
         log = upsert(log, {
           key: 'ingredients',
           text: busy
-            ? `מזהה מצרכים (${p.ingredients})${p.lastIngredient ? `: ${short(p.lastIngredient)}` : '…'}`
-            : `זיהיתי ${p.ingredients} מצרכים`,
+            ? `מזהים מצרכים (${p.ingredients})${p.lastIngredient ? `: ${short(p.lastIngredient)}` : '…'}`
+            : `זוהו ${p.ingredients} מצרכים`,
           state: busy ? 'active' : 'done',
         });
       }
@@ -166,22 +174,22 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
         log = upsert(log, {
           key: 'steps',
           text: busy
-            ? `מחלק לשלבים (${p.steps})${p.lastStep ? `: ${short(p.lastStep)}` : '…'}`
-            : `חילקתי ל-${p.steps} שלבים`,
+            ? `מחלקים לשלבים (${p.steps})${p.lastStep ? `: ${short(p.lastStep)}` : '…'}`
+            : `חולק ל-${p.steps} שלבים`,
           state: busy ? 'active' : 'done',
         });
       }
       if (p.timers > 0) {
         log = upsert(log, {
           key: 'timers',
-          text: p.timers === 1 ? 'הוספתי טיימר אחד' : `הוספתי ${p.timers} טיימרים`,
+          text: p.timers === 1 ? 'נוסף טיימר אחד' : `נוספו ${p.timers} טיימרים`,
           state: 'done',
         }, false);
       }
       if (p.section === 'after') {
         log = upsert(log, {
           key: 'prep',
-          text: p.prep ? `מצאתי ${p.prep === 1 ? 'הכנה אחת' : `${p.prep} הכנות`} מראש` : 'בודק אם יש מה להכין מראש…',
+          text: p.prep ? `${p.prep === 1 ? 'נמצאה הכנה אחת' : `נמצאו ${p.prep} הכנות`} מראש` : 'בודקים אם יש מה להכין מראש…',
           state: 'active',
         });
       }
@@ -190,7 +198,7 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
           log,
           {
             key: 'questions',
-            text: p.questions === 1 ? 'יש שורה אחת לא ברורה – אשאל אותך עליה' : `יש ${p.questions} שורות לא ברורות – אשאל אותך עליהן`,
+            text: p.questions === 1 ? 'יש שורה אחת לא ברורה, נשאל אתכם עליה' : `יש ${p.questions} שורות לא ברורות, נשאל אתכם עליהן`,
             state: 'warn',
           },
           false,
@@ -200,15 +208,15 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
       break;
     }
     case 'invalid-retry':
-      log = upsert(log, { key: `invalid-${log.length}`, text: 'התשובה לא הייתה תקינה, מבקש שוב…', state: 'warn' });
+      log = upsert(log, { key: `invalid-${log.length}`, text: 'התשובה לא הייתה תקינה, מבקשים שוב…', state: 'warn' });
       break;
     case 'validate':
-      log = upsert(finishAll(log), { key: 'validate', text: 'בודק שהמתכון שלם ותקין…', state: 'active' });
+      log = upsert(finishAll(log), { key: 'validate', text: 'בודקים שהמתכון שלם ותקין…', state: 'active' });
       percent = Math.max(percent, 95);
       waiting = false;
       break;
     case 'saving':
-      log = upsert(log, { key: 'save', text: 'שומר טיוטה לעריכה…', state: 'active' });
+      log = upsert(log, { key: 'save', text: 'שומרים טיוטה לעריכה…', state: 'active' });
       percent = Math.max(percent, 98);
       break;
     case 'done':
@@ -217,5 +225,5 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
       waiting = false;
       break;
   }
-  return { percent, waiting, emoji, log };
+  return { percent, waiting, emoji, preview, log };
 }

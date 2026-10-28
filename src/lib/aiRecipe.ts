@@ -58,6 +58,11 @@ export const aiRecipeSchema = z.object({
     )
     .optional()
     .nullable(),
+  // Where the finished dish appears in one of the photos (percent of that image), or null.
+  dishBox: z
+    .object({ imageNumber: z.number(), x: z.number(), y: z.number(), w: z.number(), h: z.number() })
+    .optional()
+    .nullable(),
 });
 
 export type AiRecipe = z.infer<typeof aiRecipeSchema>;
@@ -133,16 +138,31 @@ export const geminiResponseSchema = {
         required: ['question'],
       },
     },
+    dishBox: {
+      type: 'OBJECT',
+      nullable: true,
+      properties: {
+        imageNumber: { type: 'INTEGER' },
+        x: { type: 'NUMBER' },
+        y: { type: 'NUMBER' },
+        w: { type: 'NUMBER' },
+        h: { type: 'NUMBER' },
+      },
+      required: ['imageNumber', 'x', 'y', 'w', 'h'],
+    },
   },
   required: ['isRecipe'],
   propertyOrdering: [
     'isRecipe', 'notRecipeReason', 'unreadable', 'title', 'emoji', 'category', 'tags',
-    'servings', 'totalTime', 'ingredients', 'steps', 'prepAhead', 'notes', 'questions',
+    'servings', 'totalTime', 'ingredients', 'steps', 'prepAhead', 'notes', 'questions', 'dishBox',
   ],
 };
 
+/** Crop box of the finished dish in source photo number `imageNumber` (1-based), in percent. */
+export type AiDishBox = { imageNumber: number; x: number; y: number; w: number; h: number };
+
 export type ParseResult =
-  | { ok: true; recipe: Recipe }
+  | { ok: true; recipe: Recipe; dishBox?: AiDishBox }
   | { ok: false; reason: 'invalid' | 'not-recipe' | 'unreadable' };
 
 function clean(s: string | null | undefined): string | undefined {
@@ -251,8 +271,15 @@ export function parseAiResponse(text: string, makeId: () => string, now: number)
       stepId: q.stepNumber != null ? stepIdByNumber.get(Math.round(q.stepNumber)) : undefined,
     }));
 
+  const box = ai.dishBox;
+  const dishBox =
+    box && [box.imageNumber, box.x, box.y, box.w, box.h].every(Number.isFinite) && box.imageNumber >= 1 && box.w > 0 && box.h > 0
+      ? { imageNumber: Math.round(box.imageNumber), x: box.x, y: box.y, w: box.w, h: box.h }
+      : undefined;
+
   return {
     ok: true,
+    dishBox,
     recipe: {
       id: makeId(),
       title,

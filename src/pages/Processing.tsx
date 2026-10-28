@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { IconCheck } from '../components/Icons';
-import { Button } from '../components/ui';
+import { IconCheck, IconCloudOff, IconHourglass, IconKey, IconQuestion, IconWarning } from '../components/Icons';
+import { Button, IconBadge, ScreenSkeleton, Skeleton, Spinner } from '../components/ui';
 import { db } from '../db';
 import { initialProgress, progressReducer, type AiEvent, type AiProgress, type LogItem } from '../lib/aiProgress';
 import { AiError, extractRecipe, type AiErrorCode } from '../lib/gemini';
+import { cropDishPhoto } from '../lib/image';
 import { discardDraft } from '../lib/recipeActions';
 import { getSettings } from '../settings';
 import { S } from '../strings.he';
@@ -59,56 +60,115 @@ function useShownPercent(p: AiProgress): number {
 
 function LogLine({ item }: { item: LogItem }) {
   return (
-    <li className="anim-fade-up flex items-start gap-3 py-1.5">
-      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center" aria-hidden="true">
-        {item.state === 'done' && (
-          <span className="flex size-6 items-center justify-center rounded-full bg-secondary text-white">
-            <IconCheck size={14} />
-          </span>
-        )}
-        {item.state === 'active' && (
-          <span className="size-5 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
-        )}
-        {item.state === 'warn' && <span className="text-lg leading-none">⚠️</span>}
+    <li className="anim-fade-up flex items-start gap-2 py-1">
+      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center" aria-hidden="true">
+        {item.state === 'done' && <IconCheck size={16} className="text-secondary" />}
+        {item.state === 'active' && <Spinner size={14} />}
+        {item.state === 'warn' && <IconWarning size={16} className="text-primary" />}
       </span>
-      <span className={`min-w-0 flex-1 text-start text-lg ${item.state === 'active' ? 'font-medium' : 'text-muted'}`}>
-        {item.text}
-      </span>
+      <span className={`min-w-0 flex-1 text-sm ${item.state === 'active' ? 'text-ink' : 'text-muted'}`}>{item.text}</span>
     </li>
+  );
+}
+
+/** A recipe card that starts as a skeleton and fills in with what has really been read so far. */
+function FillingCard({ p }: { p: AiProgress }) {
+  const { title, ingredients, steps } = p.preview;
+  const ingRows = Math.max(4, Math.min(6, ingredients.length));
+  const stepRows = Math.max(2, Math.min(3, steps.length));
+  return (
+    <div className="overflow-hidden rounded-card bg-surface shadow-soft">
+      <div className="flex aspect-[16/7] items-center justify-center bg-surface-2">
+        {p.emoji ? (
+          <span className="anim-fade-in text-3xl" aria-hidden="true">
+            {p.emoji}
+          </span>
+        ) : (
+          <Skeleton className="size-14 rounded-full" />
+        )}
+      </div>
+      <div className="p-4">
+        {title ? <h2 className="anim-fade-in font-serif text-xl">{title}</h2> : <Skeleton className="h-7 w-2/3 rounded-xl" />}
+        <div className="mt-4 flex flex-col gap-2">
+          {Array.from({ length: ingRows }, (_, i) =>
+            ingredients[i] ? (
+              <p key={i} className="anim-fade-in truncate text-sm">
+                <span className="text-muted">• </span>
+                {ingredients[i]}
+              </p>
+            ) : (
+              <Skeleton key={i} className="h-4 rounded-xl" />
+            ),
+          )}
+        </div>
+        <div className="mt-4 flex flex-col gap-2">
+          {Array.from({ length: stepRows }, (_, i) =>
+            steps[i] ? (
+              <p key={i} className="anim-fade-in line-clamp-2 text-sm">
+                <span className="font-bold text-muted tabular-nums">{i + 1}. </span>
+                {steps[i]}
+              </p>
+            ) : (
+              <Skeleton key={i} className="h-8 rounded-xl" />
+            ),
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
 function ProgressView({ id }: { id: string }) {
   const p = useProgress(id);
   const percent = useShownPercent(p);
-  const current = [...p.log].reverse().find((l) => l.state === 'active');
+  const current = [...p.log].reverse().find((l) => l.state === 'active') ?? p.log.at(-1);
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10" aria-busy="true">
-      <div className="text-center">
-        <p className="text-5xl" aria-hidden="true">
-          {p.emoji ?? '📖'}
-        </p>
-        <p className="mt-3 font-serif text-6xl font-bold tabular-nums text-primary" dir="ltr">
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pt-[calc(24px+env(safe-area-inset-top))] pb-8" aria-busy="true">
+      <h1 className="text-center font-serif text-2xl">{S.processing.title}</h1>
+      <div className="mt-6">
+        <FillingCard p={p} />
+      </div>
+      <div className="mt-6 flex items-center gap-3">
+        <div
+          className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          aria-valuetext={current?.text}
+        >
+          <div className="h-full rounded-full bg-primary transition-[width] duration-[400ms]" style={{ width: `${percent}%` }} />
+        </div>
+        <span className="w-12 text-end text-base font-bold tabular-nums" dir="ltr">
           {percent}%
-        </p>
+        </span>
       </div>
-      <div
-        className="mt-4 h-3 w-full overflow-hidden rounded-full bg-surface-2"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        aria-valuetext={current?.text}
-      >
-        <div className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out" style={{ width: `${percent}%` }} />
-      </div>
-      <ul className="mt-6 flex flex-col" aria-live="polite">
-        {p.log.map((item) => (
-          <LogLine key={item.key} item={item} />
-        ))}
-      </ul>
+      <p key={current?.text} className="anim-fade-in mt-2 min-h-6 text-center text-base" aria-live="polite">
+        {current?.text}
+      </p>
+      {p.log.length > 1 && (
+        <ul className="mt-4 rounded-card bg-surface-2 px-3 py-2">
+          {p.log.map((item) => (
+            <LogLine key={item.key} item={item} />
+          ))}
+        </ul>
+      )}
     </div>
   );
+}
+
+function ErrorIcon({ code }: { code: AiErrorCode }) {
+  const icon =
+    code === 'offline' ? (
+      <IconCloudOff size={44} />
+    ) : code === 'quota' ? (
+      <IconHourglass size={44} />
+    ) : code === 'no-key' || code === 'bad-key' ? (
+      <IconKey size={44} />
+    ) : (
+      <IconQuestion size={44} />
+    );
+  return <IconBadge>{icon}</IconBadge>;
 }
 
 export default function Processing() {
@@ -125,15 +185,21 @@ export default function Processing() {
       try {
         const rows = await db.images.bulkGet(draft.sourceImageIds);
         const images = rows.filter((r) => !!r).map((r) => r.blob);
-        const recipe = await extractRecipe(getSettings().apiKey, { text: draft.text, images }, report);
+        const { recipe, dishBox } = await extractRecipe(getSettings().apiKey, { text: draft.text, images }, report);
         recipe.sourceImageIds = draft.sourceImageIds.length ? draft.sourceImageIds : undefined;
         recipe.sourceText = draft.text;
+        // A photo of the finished dish in the source: crop it out as the dish photo.
+        const source = dishBox ? images[dishBox.imageNumber - 1] : undefined;
+        if (dishBox && source && !recipe.imageId) {
+          const cropped = await cropDishPhoto(source, dishBox);
+          if (cropped) recipe.imageId = cropped;
+        }
         report({ type: 'saving' });
         await db.drafts.update(draftId, { status: 'ready', recipe, updatedAt: Date.now(), errorCode: undefined });
         report({ type: 'done' });
         // A short beat at 100% so the finished state is visible.
         await new Promise((r) => setTimeout(r, 400));
-        navigate(`/edit/${draftId}`, { replace: true });
+        navigate(`/edit/${draftId}`, { replace: true, viewTransition: true });
       } catch (e) {
         const code: AiErrorCode = e instanceof AiError ? e.code : 'server';
         const detail = e instanceof AiError ? e.detail : e instanceof Error ? e.message : String(e);
@@ -144,7 +210,7 @@ export default function Processing() {
     })();
   }, [draft, draftId, navigate]);
 
-  if (draft === null) return <div className="min-h-dvh" />;
+  if (draft === null) return <ScreenSkeleton />;
   if (!draft) return <Navigate to="/" replace />;
   // While finishing, stay on the progress screen until the 100% beat is over.
   if (draft.status === 'ready' && !inFlight.has(draftId)) return <Navigate to={`/edit/${draftId}`} replace />;
@@ -173,22 +239,25 @@ export default function Processing() {
     const code = (draft.errorCode ?? 'server') as AiErrorCode;
     const needsSettings = code === 'no-key' || code === 'bad-key';
     return (
-      <div className="anim-fade-up mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-6xl" aria-hidden="true">
-          {code === 'offline' ? '📡' : code === 'quota' ? '⏳' : needsSettings ? '🔑' : '🤔'}
-        </p>
-        <p role="alert" className="text-xl font-medium">
+      <div className="anim-fade-up mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8 text-center">
+        <ErrorIcon code={code} />
+        <h1 className="mt-4 font-serif text-2xl">{S.errorTitles[code] ?? S.errorTitles.generic}</h1>
+        <p role="alert" className="mt-2 text-base text-muted">
           {S.errors[code] ?? S.errors.generic}
         </p>
         {draft.errorDetail && (
-          <p dir="ltr" className="max-w-full break-words rounded-xl bg-surface-2 px-3 py-2 text-start font-mono text-xs text-muted">
-            {draft.errorDetail}
-          </p>
+          <details className="mt-4 text-start">
+            <summary className="min-h-12 cursor-pointer py-3 text-center text-sm text-muted">{S.processing.details}</summary>
+            <p dir="ltr" className="rounded-xl bg-surface-2 px-3 py-2 font-mono text-xs break-words text-muted">
+              {draft.errorDetail}
+            </p>
+          </details>
         )}
-        <div className="mt-2 flex w-full flex-col gap-3">
+        <div className="mt-6 flex w-full flex-col gap-3">
           {needsSettings ? (
             <Button big onClick={() => navigate('/settings')}>
-              🔑 {S.processing.toSettings}
+              <IconKey size={20} />
+              {S.processing.toSettings}
             </Button>
           ) : (
             <Button big onClick={() => void retry()}>
