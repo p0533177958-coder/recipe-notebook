@@ -24,6 +24,16 @@ export type Step = {
   timers: StepTimer[];
 };
 
+/** A line the AI could not read or understand. It asks instead of guessing. */
+export type AiQuestion = {
+  id: string;
+  question: string;
+  /** The unclear line as it appears in the source. */
+  quote?: string;
+  ingredientId?: string;
+  stepId?: string;
+};
+
 /** Something to start ahead of time (preheat oven, soak, take butter out…), needed by stepId. */
 export type PrepHint = { text: string; stepId: string; leadMinutes: number; emoji?: string };
 
@@ -45,6 +55,8 @@ export type Recipe = {
   prepAhead?: PrepHint[];
   /** Set once the user edited the hints; local detection then stops adding its own. */
   prepReviewed?: boolean;
+  /** Open questions from the AI; only present in drafts, removed on save. */
+  questions?: AiQuestion[];
   notes?: string;
   favorite: boolean;
   createdAt: number;

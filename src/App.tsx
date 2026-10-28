@@ -16,6 +16,7 @@ const ImagesPreview = lazy(() => import('./pages/ImagesPreview'));
 const Processing = lazy(() => import('./pages/Processing'));
 const EditRecipe = lazy(() => import('./pages/EditRecipe'));
 const ShareReceive = lazy(() => import('./pages/ShareReceive'));
+const RecipePage = lazy(() => import('./pages/RecipePage'));
 
 /** Lets a waiting update apply on the next safe screen, and confirms right after an update. */
 function UpdateWatcher() {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/recipe/:id" element={<RecipeIntro />} />
             <Route path="/cook/:id" element={<Cook />} />
+            <Route path="/page/:id" element={<RecipePage />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/add/text" element={<AddText />} />
             <Route path="/add/images/:draftId" element={<ImagesPreview />} />

@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { IconEdit, IconShare, IconSource, IconStar } from '../components/Icons';
+import { IconEdit, IconScroll, IconShare, IconSource, IconStar } from '../components/Icons';
 import { IngredientList } from '../components/IngredientList';
 import { PrepCard } from '../components/PrepAhead';
 import { RecipeVisual } from '../components/RecipeVisual';
@@ -134,14 +134,26 @@ export default function RecipeIntro() {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg to-transparent px-4 pt-6 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <Button
-          big
-          className="mx-auto w-full max-w-2xl text-2xl"
-          disabled={recipe.steps.length === 0}
-          onClick={() => navigate(`/cook/${recipe.id}`)}
-        >
-          {S.intro.startCooking}
-        </Button>
+        <div className="mx-auto flex w-full max-w-2xl gap-3">
+          <Button
+            big
+            className="flex-1 text-2xl"
+            disabled={recipe.steps.length === 0}
+            onClick={() => navigate(`/cook/${recipe.id}`)}
+          >
+            {S.intro.startCooking}
+          </Button>
+          <Button
+            big
+            variant="secondary"
+            className="flex-col gap-0.5! px-4! text-sm"
+            aria-label={S.page.open}
+            onClick={() => navigate(`/page/${recipe.id}`)}
+          >
+            <IconScroll size={24} />
+            {S.page.open}
+          </Button>
+        </div>
       </div>
 
       <ShareSheet recipe={share ? recipe : null} onClose={() => setShare(false)} />

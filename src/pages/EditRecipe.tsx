@@ -17,6 +17,9 @@ import { CATEGORIES, type Category, type Draft, type Ingredient, type PrepHint, 
 const input =
   'min-h-12 w-full rounded-xl border border-line bg-bg px-3 text-base outline-none focus:border-primary placeholder:text-muted';
 
+/** Marks an ingredient or step the AI asked about. */
+const QUESTION_RING = 'ring-2 ring-amber-400 ring-offset-2 ring-offset-surface';
+
 function Field({ label, children, htmlFor }: { label: string; children: ReactNode; htmlFor?: string }) {
   return (
     <div>
@@ -66,6 +69,7 @@ function cleanRecipe(r: Recipe): Recipe {
     ingredients,
     steps,
     prepAhead: r.prepAhead?.filter((p) => stepIds.has(p.stepId)),
+    questions: undefined, // open questions belong to the draft only
   };
 }
 
@@ -84,6 +88,7 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
   const [tagInput, setTagInput] = useState('');
   const [showSource, setShowSource] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmQuestions, setConfirmQuestions] = useState(false);
   const [error, setError] = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
   const saving = useRef(false);
@@ -122,7 +127,15 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
     }
   };
 
-  const save = async () => {
+  const questions = r.questions ?? [];
+  const flaggedIds = new Set(questions.flatMap((q) => [q.ingredientId, q.stepId].filter((x): x is string => !!x)));
+  const resolveQuestion = (id: string) => patch({ questions: questions.filter((q) => q.id !== id) });
+
+  const save = async (force = false) => {
+    if (!force && questions.length > 0) {
+      setConfirmQuestions(true);
+      return;
+    }
     const clean = cleanRecipe(r);
     if (!clean.title) {
       setError(S.edit.needTitle);
@@ -175,6 +188,15 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
       />
       <div className="flex flex-col gap-4 px-4">
         {isNew && <p className="text-muted">{S.edit.hint}</p>}
+
+        {questions.length > 0 && (
+          <QuestionsCard
+            recipe={r}
+            onChangeIngredient={(id, text) => setIngredient(id, { text })}
+            onChangeStep={(id, text) => setStep(id, { text })}
+            onResolve={resolveQuestion}
+          />
+        )}
 
         <Card title={S.edit.dishPhoto}>
           <div className="flex items-center gap-4">
@@ -311,6 +333,7 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
               {r.ingredients.map((ing) => (
                 <IngredientRow
                   key={ing.id}
+                  flagged={flaggedIds.has(ing.id)}
                   ing={ing}
                   onChange={(p) => setIngredient(ing.id, p)}
                   onDelete={() =>
@@ -342,6 +365,7 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
               {r.steps.map((s, i) => (
                 <StepEditor
                   key={s.id}
+                  flagged={flaggedIds.has(s.id)}
                   step={s}
                   n={i + 1}
                   ingredients={r.ingredients}
@@ -379,6 +403,19 @@ function Editor({ draft }: { draft: Draft & { recipe: Recipe } }) {
 
       <SourceSheet open={showSource} onClose={() => setShowSource(false)} imageIds={draft.sourceImageIds} text={draft.text} />
       <ConfirmSheet
+        open={confirmQuestions}
+        message={S.questions.saveConfirm(questions.length)}
+        confirmLabel={S.questions.saveAnyway}
+        onCancel={() => {
+          setConfirmQuestions(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onConfirm={() => {
+          setConfirmQuestions(false);
+          void save(true);
+        }}
+      />
+      <ConfirmSheet
         open={confirmDiscard}
         message={S.edit.discardConfirm}
         confirmLabel={S.edit.discardDraft}
@@ -409,16 +446,18 @@ function DragHandle({ props }: { props: ReturnType<typeof useSortableItem>['hand
 
 function IngredientRow({
   ing,
+  flagged,
   onChange,
   onDelete,
 }: {
   ing: Ingredient;
+  flagged?: boolean;
   onChange: (p: Partial<Ingredient>) => void;
   onDelete: () => void;
 }) {
   const { setNodeRef, style, handleProps, isDragging } = useSortableItem(ing.id);
   return (
-    <li ref={setNodeRef} style={style} className={`flex items-start gap-1 rounded-xl ${isDragging ? 'bg-surface shadow-lift' : ''}`}>
+    <li ref={setNodeRef} style={style} className={`flex items-start gap-1 rounded-xl ${isDragging ? 'bg-surface shadow-lift' : ''} ${flagged ? QUESTION_RING : ''}`}>
       <DragHandle props={handleProps} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <input
@@ -447,12 +486,14 @@ function IngredientRow({
 
 function StepEditor({
   step,
+  flagged,
   n,
   ingredients,
   onChange,
   onDelete,
 }: {
   step: Step;
+  flagged?: boolean;
   n: number;
   ingredients: Ingredient[];
   onChange: (p: Partial<Step>) => void;
@@ -473,7 +514,7 @@ function StepEditor({
     <li
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border border-line bg-bg p-2 ${isDragging ? 'shadow-lift' : ''}`}
+      className={`rounded-xl border border-line bg-bg p-2 ${isDragging ? 'shadow-lift' : ''} ${flagged ? QUESTION_RING : ''}`}
     >
       <div className="flex items-center gap-1">
         <DragHandle props={handleProps} />
@@ -600,5 +641,68 @@ function PrepEditor({ recipe, onChange }: { recipe: Recipe; onChange: (hints: Pr
         ))}
       </ul>
     </Card>
+  );
+}
+
+/** The AI's questions about lines it could not read for sure, each with an inline fix. */
+function QuestionsCard({
+  recipe,
+  onChangeIngredient,
+  onChangeStep,
+  onResolve,
+}: {
+  recipe: Recipe;
+  onChangeIngredient: (id: string, text: string) => void;
+  onChangeStep: (id: string, text: string) => void;
+  onResolve: (questionId: string) => void;
+}) {
+  const questions = recipe.questions ?? [];
+  return (
+    <section
+      className="anim-fade-up rounded-card border-2 border-amber-400/70 bg-amber-50 p-4 shadow-soft dark:bg-amber-950/30"
+      aria-labelledby="q-h"
+    >
+      <h2 id="q-h" className="text-lg font-bold text-amber-800 dark:text-amber-300">
+        ❓ {S.questions.title(questions.length)}
+      </h2>
+      <p className="mb-3 text-sm text-muted">{S.questions.hint}</p>
+      <ul className="flex flex-col gap-3">
+        {questions.map((q) => {
+          const ingIndex = q.ingredientId ? recipe.ingredients.findIndex((i) => i.id === q.ingredientId) : -1;
+          const stepIndex = q.stepId ? recipe.steps.findIndex((s) => s.id === q.stepId) : -1;
+          const target =
+            ingIndex >= 0
+              ? { label: S.questions.ingredient, value: recipe.ingredients[ingIndex].text, set: (t: string) => onChangeIngredient(q.ingredientId!, t) }
+              : stepIndex >= 0
+                ? { label: S.questions.step(stepIndex + 1), value: recipe.steps[stepIndex].text, set: (t: string) => onChangeStep(q.stepId!, t) }
+                : null;
+          return (
+            <li key={q.id} className="rounded-xl bg-surface p-3">
+              <p className="font-medium">{q.question}</p>
+              {q.quote && (
+                <p className="mt-1 text-sm text-muted">
+                  {S.questions.original} <q className="italic">{q.quote}</q>
+                </p>
+              )}
+              {target && (
+                <label className="mt-2 block">
+                  <span className="mb-1 block text-sm text-muted">{target.label}</span>
+                  {stepIndex >= 0 ? (
+                    <textarea value={target.value} onChange={(e) => target.set(e.target.value)} rows={2} className={`${input} py-2`} />
+                  ) : (
+                    <input value={target.value} onChange={(e) => target.set(e.target.value)} className={input} />
+                  )}
+                </label>
+              )}
+              <div className="mt-2 flex justify-end">
+                <Button variant="olive" className="min-h-11!" onClick={() => onResolve(q.id)}>
+                  {target ? S.questions.fixed : S.questions.understood}
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

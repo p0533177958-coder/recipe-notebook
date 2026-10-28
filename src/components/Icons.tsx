@@ -183,3 +183,17 @@ export const IconMinus = (p: P) => (
     <path d="M5 12h14" />
   </Svg>
 );
+export const IconPrint = (p: P) => (
+  <Svg {...p}>
+    <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" rx="1" />
+  </Svg>
+);
+/** A rolled recipe page: opens the one-page recipe card. */
+export const IconScroll = (p: P) => (
+  <Svg {...p}>
+    <path d="M8 21h11a2 2 0 0 0 2-2v-1H10v1a2 2 0 1 1-4 0V5a2 2 0 0 0-2-2 2 2 0 0 0-2 2v3h4" />
+    <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+    <path d="M10 8h6M10 12h6" />
+  </Svg>
+);

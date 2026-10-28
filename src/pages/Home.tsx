@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AddFab, AddMenuItems, ShareHelpSheet, useAddActions } from '../components/AddMenu';
-import { IconClose, IconEdit, IconGrid, IconRows, IconSearch, IconSettings, IconShare, IconStar, IconTrash } from '../components/Icons';
+import { IconClose, IconEdit, IconGrid, IconRows, IconScroll, IconSearch, IconSettings, IconShare, IconStar, IconTrash } from '../components/Icons';
 import { RecipeVisual } from '../components/RecipeVisual';
 import { ShareSheet } from '../components/ShareSheet';
 import { Chip, ConfirmSheet, IconButton, Sheet, SheetItem, toast } from '../components/ui';
@@ -240,6 +240,14 @@ export default function Home() {
               label={menuFor.favorite ? S.menu.unfavorite : S.menu.favorite}
               onClick={() => {
                 void toggleFavorite(menuFor);
+                setMenuFor(null);
+              }}
+            />
+            <SheetItem
+              icon={<IconScroll />}
+              label={S.page.open}
+              onClick={() => {
+                navigate(`/page/${menuFor.id}`);
                 setMenuFor(null);
               }}
             />

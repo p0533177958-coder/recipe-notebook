@@ -1,0 +1,366 @@
+/*
+ * "דף מתכון": the whole recipe on one screen, styled as an illustrated recipe card.
+ * Every size is in em, so the fitting code can scale the entire card with a single font-size.
+ */
+
+.rp {
+  --rp-paper: #fbf3e4;
+  --rp-paper-edge: #efe0c4;
+  --rp-ink: #3b2f2a;
+  --rp-soft: #7d6b5f;
+  --rp-accent: var(--c-primary);
+  --rp-leaf: var(--c-secondary);
+  --rp-line: #c8553d;
+  --rp-chip: #f4e6cf;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+  color: var(--rp-ink);
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgb(120 80 40 / 0.18) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.32  0 0 0 0 0.18  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    linear-gradient(160deg, var(--rp-paper) 0%, var(--rp-paper-edge) 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .rp {
+    --rp-paper: #2b241f;
+    --rp-paper-edge: #1f1a17;
+    --rp-ink: #f3eae0;
+    --rp-soft: #c2b2a3;
+    --rp-line: #d9a55b;
+    --rp-chip: #3a302a;
+  }
+}
+:root[data-theme='dark'] .rp {
+  --rp-paper: #2b241f;
+  --rp-paper-edge: #1f1a17;
+  --rp-ink: #f3eae0;
+  --rp-soft: #c2b2a3;
+  --rp-line: #d9a55b;
+  --rp-chip: #3a302a;
+}
+
+.rp-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  height: 100%;
+  overflow: hidden;
+  padding: 2.2em 2em 1.6em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+  line-height: 1.38;
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* Double ruled frame with ornamental corners. */
+.rp-frame {
+  position: absolute;
+  inset: 0.55em;
+  border: 0.12em solid var(--rp-line);
+  border-radius: 0.5em;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.rp-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0.32em;
+  border: 0.05em solid var(--rp-line);
+  border-radius: 0.3em;
+  opacity: 0.7;
+}
+.rp-corner {
+  position: absolute;
+  width: 3.4em;
+  height: 3.4em;
+  color: var(--rp-line);
+  pointer-events: none;
+}
+.rp-corner.tr {
+  top: 0.15em;
+  right: 0.15em;
+}
+.rp-corner.tl {
+  top: 0.15em;
+  left: 0.15em;
+  transform: scaleX(-1);
+}
+.rp-corner.br {
+  bottom: 0.15em;
+  right: 0.15em;
+  transform: scaleY(-1);
+}
+.rp-corner.bl {
+  bottom: 0.15em;
+  left: 0.15em;
+  transform: scale(-1, -1);
+}
+
+/* Header */
+.rp-head {
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+  padding-inline: 0.6em;
+}
+.rp-medal {
+  flex-shrink: 0;
+  width: 6.2em;
+  height: 6.2em;
+  border-radius: 50%;
+  padding: 0.28em;
+  background: conic-gradient(from 0deg, var(--rp-line), var(--rp-leaf), var(--rp-line), var(--rp-leaf), var(--rp-line));
+  box-shadow: 0 0.3em 0.9em rgb(80 40 20 / 0.22);
+}
+.rp-medal > * {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 0.18em solid var(--rp-paper);
+}
+.rp-titles {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  /* Room for the floating close/print buttons (fixed px, they do not scale). */
+  padding-inline-end: 84px;
+}
+.rp-category {
+  font-size: 0.8em;
+  letter-spacing: 0.35em;
+  color: var(--rp-leaf);
+  font-weight: 600;
+}
+.rp-title {
+  font-family: var(--font-title, 'Frank Ruhl Libre'), 'Rubik', serif;
+  font-weight: var(--font-title-weight, 700);
+  font-size: 2.6em;
+  line-height: 1.05;
+  color: var(--rp-ink);
+  margin: 0.1em 0 0.05em;
+  text-wrap: balance;
+}
+.rp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em;
+  margin-top: 0.45em;
+}
+.rp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.18em 0.8em;
+  border-radius: 999px;
+  background: var(--rp-chip);
+  border: 0.06em solid color-mix(in srgb, var(--rp-line) 45%, transparent);
+  font-size: 0.85em;
+  color: var(--rp-soft);
+}
+
+/* Ornamental divider: line · sprig · line */
+.rp-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  color: var(--rp-line);
+  margin-top: 0.35em;
+}
+.rp-divider::before,
+.rp-divider::after {
+  content: '';
+  flex: 1;
+  height: 0.07em;
+  background: linear-gradient(to left, transparent, currentColor 30%, currentColor 70%, transparent);
+}
+.rp-divider svg {
+  width: 3.2em;
+  height: 1.1em;
+}
+
+/* "Before you start" note */
+.rp-prep {
+  margin-inline: 0.6em;
+  padding: 0.5em 0.9em;
+  border-radius: 0.6em;
+  background: color-mix(in srgb, var(--rp-leaf) 13%, transparent);
+  border-inline-start: 0.25em solid var(--rp-leaf);
+  font-size: 0.92em;
+}
+.rp-prep b {
+  color: var(--rp-leaf);
+}
+
+/* Body: the fitting code picks one of three layouts. */
+.rp-body {
+  flex: 1;
+  min-height: 0;
+  padding-inline: 0.6em;
+}
+.rp-body[data-layout='side'],
+.rp-body[data-layout='side2'] {
+  display: grid;
+  /* The fitting code tries several ingredient-column widths. */
+  grid-template-columns: minmax(0, var(--rp-ing, 0.82fr)) minmax(0, 1.75fr);
+  gap: 1.8em;
+}
+.rp-body[data-layout='side'] .rp-ingredients,
+.rp-body[data-layout='side2'] .rp-ingredients {
+  border-inline-end: 0.06em dashed color-mix(in srgb, var(--rp-line) 60%, transparent);
+  padding-inline-end: 1.4em;
+}
+.rp-body[data-layout='stack'] .rp-ing-list {
+  columns: 2;
+  column-gap: 2em;
+}
+.rp-body[data-layout='stack'] .rp-ingredients {
+  margin-bottom: 0.9em;
+}
+.rp-body[data-layout='side2'] .rp-steps-list {
+  columns: 2;
+  column-gap: 1.8em;
+}
+
+.rp-h {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--font-title, 'Frank Ruhl Libre'), 'Rubik', serif;
+  font-weight: var(--font-title-weight, 700);
+  font-size: 1.35em;
+  color: var(--rp-accent);
+  margin-bottom: 0.4em;
+}
+.rp-h::after {
+  content: '';
+  flex: 1;
+  height: 0.05em;
+  background: linear-gradient(to left, transparent, color-mix(in srgb, var(--rp-line) 70%, transparent));
+}
+
+.rp-group {
+  break-inside: avoid;
+  margin-bottom: 0.35em;
+}
+.rp-group-name {
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--rp-leaf);
+  margin-bottom: 0.1em;
+}
+.rp-ing {
+  display: flex;
+  gap: 0.45em;
+  break-inside: avoid;
+  padding: 0.08em 0;
+}
+.rp-ing::before {
+  content: '❦';
+  color: var(--rp-line);
+  font-size: 0.75em;
+  line-height: 1.85;
+  opacity: 0.8;
+}
+
+.rp-step {
+  display: flex;
+  gap: 0.6em;
+  break-inside: avoid;
+  margin-bottom: 0.5em;
+}
+.rp-num {
+  flex-shrink: 0;
+  width: 1.7em;
+  height: 1.7em;
+  margin-top: -0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 0.08em solid var(--rp-line);
+  font-family: var(--font-title, 'Frank Ruhl Libre'), 'Rubik', serif;
+  font-weight: 700;
+  font-size: 0.95em;
+  color: var(--rp-accent);
+  background: color-mix(in srgb, var(--rp-paper) 70%, white);
+}
+.rp-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  margin-inline-start: 0.35em;
+  padding: 0 0.5em;
+  border-radius: 999px;
+  font-size: 0.8em;
+  white-space: nowrap;
+  color: var(--rp-leaf);
+  background: color-mix(in srgb, var(--rp-leaf) 14%, transparent);
+  vertical-align: 0.08em;
+}
+
+.rp-notes {
+  margin-inline: 0.6em;
+  font-size: 0.92em;
+  color: var(--rp-soft);
+  font-style: italic;
+}
+.rp-notes b {
+  font-style: normal;
+  color: var(--rp-accent);
+}
+.rp-footer {
+  text-align: center;
+  font-size: 0.72em;
+  letter-spacing: 0.2em;
+  color: var(--rp-soft);
+  opacity: 0.85;
+}
+
+/* Floating controls; hidden when printing. */
+.rp-tools {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 14px;
+  z-index: 41;
+  display: flex;
+  gap: 8px;
+}
+.rp-tools button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--rp-ink);
+  background: color-mix(in srgb, var(--rp-paper) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rp-line) 40%, transparent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+  backdrop-filter: blur(4px);
+}
+
+@media print {
+  .rp {
+    position: static;
+    padding: 0;
+    background: #fbf3e4;
+  }
+  .rp-tools {
+    display: none;
+  }
+  .rp-sheet {
+    height: 100vh;
+    max-width: none;
+  }
+  @page {
+    margin: 8mm;
+  }
+}

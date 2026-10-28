@@ -37,6 +37,7 @@ export type PartialInfo = {
   lastStep?: string;
   timers: number;
   prep: number;
+  questions: number;
 };
 
 function decode(raw: string): string {
@@ -84,7 +85,9 @@ export function analyzePartial(text: string): PartialInfo {
     steps: stepTexts.length,
     lastStep: stepTexts.at(-1),
     timers: count(stepSlice, /"seconds"\s*:/g),
-    prep: count(afterSlice, /"stepNumber"\s*:/g),
+    // Questions also carry stepNumber, so count prep hints only before the questions list.
+    prep: count(afterSlice.split('"questions"')[0], /"stepNumber"\s*:/g),
+    questions: count(afterSlice, /"question"\s*:/g),
   };
 }
 
@@ -181,6 +184,17 @@ export function progressReducer(state: AiProgress, e: AiEvent): AiProgress {
           text: p.prep ? `מצאתי ${p.prep === 1 ? 'הכנה אחת' : `${p.prep} הכנות`} מראש` : 'בודק אם יש מה להכין מראש…',
           state: 'active',
         });
+      }
+      if (p.questions > 0) {
+        log = upsert(
+          log,
+          {
+            key: 'questions',
+            text: p.questions === 1 ? 'יש שורה אחת לא ברורה – אשאל אותך עליה' : `יש ${p.questions} שורות לא ברורות – אשאל אותך עליהן`,
+            state: 'warn',
+          },
+          false,
+        );
       }
       percent = Math.max(percent, Math.round(streamPercent(p)));
       break;

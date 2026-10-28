@@ -99,3 +99,35 @@ describe('parseAiResponse', () => {
     if (r.ok) expect(r.recipe.servings).toBeUndefined();
   });
 });
+
+describe('questions about unclear lines', () => {
+  it('links each question to its ingredient or step', () => {
+    const r = parseAiResponse(
+      JSON.stringify({
+        ...good,
+        ingredients: [...good.ingredients, { id: 'i3', text: '[?] כוסות סוכר' }],
+        questions: [
+          { question: 'כמה כוסות סוכר?', quote: '? כוסות סוכר', ingredientId: 'i3' },
+          { question: 'כמה זמן מבשלים?', quote: 'מבשלים עד ש...', stepNumber: 2 },
+          { question: 'מה הכוונה ב"ק.ס."?' },
+          { question: '   ' },
+        ],
+      }),
+      makeId,
+      0,
+    );
+    if (!r.ok) throw new Error('expected ok');
+    const [a, b, c] = r.recipe.questions ?? [];
+    expect(r.recipe.questions).toHaveLength(3);
+    expect(a).toMatchObject({ question: 'כמה כוסות סוכר?', quote: '? כוסות סוכר', ingredientId: r.recipe.ingredients[2].id });
+    expect(b.stepId).toBe(r.recipe.steps[1].id);
+    expect(c.ingredientId).toBeUndefined();
+    expect(c.stepId).toBeUndefined();
+    expect(new Set([a.id, b.id, c.id]).size).toBe(3);
+  });
+
+  it('leaves questions out when there are none', () => {
+    const r = parseAiResponse(JSON.stringify({ ...good, questions: [] }), makeId, 0);
+    expect(r.ok && r.recipe.questions).toBeUndefined();
+  });
+});

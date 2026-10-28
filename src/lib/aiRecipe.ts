@@ -47,6 +47,17 @@ export const aiRecipeSchema = z.object({
     .optional()
     .nullable(),
   notes: z.string().optional().nullable(),
+  questions: z
+    .array(
+      z.object({
+        question: z.string(),
+        quote: z.string().optional().nullable(),
+        ingredientId: z.string().optional().nullable(),
+        stepNumber: z.number().optional().nullable(),
+      }),
+    )
+    .optional()
+    .nullable(),
 });
 
 export type AiRecipe = z.infer<typeof aiRecipeSchema>;
@@ -109,11 +120,24 @@ export const geminiResponseSchema = {
       },
     },
     notes: { type: 'STRING' },
+    questions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          question: { type: 'STRING' },
+          quote: { type: 'STRING' },
+          ingredientId: { type: 'STRING' },
+          stepNumber: { type: 'INTEGER' },
+        },
+        required: ['question'],
+      },
+    },
   },
   required: ['isRecipe'],
   propertyOrdering: [
     'isRecipe', 'notRecipeReason', 'unreadable', 'title', 'emoji', 'category', 'tags',
-    'servings', 'totalTime', 'ingredients', 'steps', 'prepAhead', 'notes',
+    'servings', 'totalTime', 'ingredients', 'steps', 'prepAhead', 'notes', 'questions',
   ],
 };
 
@@ -216,6 +240,17 @@ export function parseAiResponse(text: string, makeId: () => string, now: number)
     // Drop unknown steps and hints for the first step (nothing to start earlier than that).
     .filter((p) => p.text && p.stepId && Number.isFinite(p.leadMinutes) && p.stepId !== steps[0]?.id);
 
+  // Unclear lines the model asks about instead of guessing; linked to the item they concern.
+  const questions = (ai.questions ?? [])
+    .filter((q) => q.question.trim())
+    .map((q) => ({
+      id: makeId(),
+      question: q.question.trim(),
+      quote: clean(q.quote),
+      ingredientId: q.ingredientId ? idMap.get(q.ingredientId.trim()) : undefined,
+      stepId: q.stepNumber != null ? stepIdByNumber.get(Math.round(q.stepNumber)) : undefined,
+    }));
+
   return {
     ok: true,
     recipe: {
@@ -229,6 +264,7 @@ export function parseAiResponse(text: string, makeId: () => string, now: number)
       ingredients,
       steps,
       prepAhead,
+      questions: questions.length ? questions : undefined,
       notes: clean(ai.notes),
       favorite: false,
       createdAt: now,

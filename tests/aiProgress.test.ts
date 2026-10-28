@@ -164,3 +164,20 @@ describe('createSseParser', () => {
     expect(got).toEqual([{ error: { code: 429 } }]);
   });
 });
+
+describe('questions while streaming', () => {
+  it('announces unclear lines and does not count them as prep hints', () => {
+    const withQ = full.replace(
+      '"notes":""}',
+      '"notes":"","questions":[{"question":"כמה סוכר?","ingredientId":"i2"},{"question":"כמה זמן?","stepNumber":3}]}',
+    );
+    const p = analyzePartial(withQ);
+    expect(p.questions).toBe(2);
+    expect(p.prep).toBe(1);
+    const s = progressReducer(initialProgress, { type: 'partial', text: withQ });
+    expect(s.log.find((l) => l.key === 'questions')).toMatchObject({
+      text: 'יש 2 שורות לא ברורות – אשאל אותך עליהן',
+      state: 'warn',
+    });
+  });
+});
